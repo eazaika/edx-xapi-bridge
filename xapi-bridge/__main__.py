@@ -1,12 +1,19 @@
-import sys, os, json, requests, threading
+import sys
+import os
+import json
+import threading
 from urlparse import urljoin
+
+import requests
+
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
-import converter, settings
+
+import converter
+import settings
+
 
 class QueueManager:
-    '''
-    Manages the batching and publishing of statements in a thread-safe way.
-    '''
+    """Manages the batching and publishing of statements in a thread-safe way."""
 
     def __init__(self):
         self.cache = []
@@ -15,15 +22,13 @@ class QueueManager:
 
     def __del__(self):
         self.destroy()
-        
-    def destroy(self):
 
-        if self.publish_timer != None:
+    def destroy(self):
+        if self.publish_timer is not None:
             self.publish_timer.cancel()
 
     def push(self, stmt):
-        '''Add a statement to the outgoing queue'''
-
+        """Add a statement to the outgoing queue."""
         # push statement to queue
         with self.cache_lock:
             self.cache.append(stmt)
@@ -38,29 +43,28 @@ class QueueManager:
             self.publish()
 
     def publish(self):
-        '''Publish the queued statements to the LRS and clear the queue'''
-
+        """Publish the queued statements to the LRS and clear the queue."""
         # make sure no new statements are added while publishing
         with self.cache_lock:
 
             # push statements to the lrs
             url = urljoin(settings.LRS_ENDPOINT, 'statements')
-            r = requests.post(url, data=json.dumps(self.cache),
+            r = requests.post(
+                url, data=json.dumps(self.cache),
                 auth=(settings.LRS_USERNAME, settings.LRS_PASSWORD),
-                headers={'X-Experience-API-Version':'1.0.1', 'Content-Type':'application/json'})
+                headers={'X-Experience-API-Version': '1.0.1', 'Content-Type': 'application/json'}
+            )
 
             print r.text
 
             # clear cache and cancel any pending publish timeouts
             self.cache = []
-            if self.publish_timer != None:
+            if self.publish_timer is not None:
                 self.publish_timer.cancel()
 
 
 class TailHandler(ProcessEvent):
-    '''
-    Parse incoming log events, convert to xapi, and add to publish queue
-    '''
+    """Parse incoming log events, convert to xapi, and add to publish queue."""
 
     MASK = EventsCodes.OP_FLAGS['IN_MODIFY']
 
@@ -68,19 +72,18 @@ class TailHandler(ProcessEvent):
 
         # prepare file input stream
         self.ifp = open(filename, 'r', 1)
-        self.ifp.seek(0,2)
-
+        self.ifp.seek(0, 2)
         self.publish_queue = QueueManager()
         self.raceBuffer = ''
 
     def __enter__(self):
         return self
+
     def __exit__(self, type, value, tb):
         self.publish_queue.destroy()
-        
-    def process_IN_MODIFY(self,event):
-        '''Handles any changes to the log file'''
 
+    def process_IN_MODIFY(self, event):
+        """Handle any changes to the log file."""
         # read all new contents from the end of the file
         buff = self.raceBuffer + self.ifp.read()
 
@@ -88,42 +91,37 @@ class TailHandler(ProcessEvent):
         # add read contents to a buffer and return
         if len(buff) != 0 and buff[-1] != '\n':
             self.raceBuffer = buff
-            
+
         else:
             self.raceBuffer = ''
             evts = [i for i in buff.split('\n') if len(i) != 0]
             for e in evts:
                 try:
-                    evtObj = json.loads(e)
-                except ValueError as err:
+                    evt_obj = json.loads(e)
+                except ValueError:
                     print 'Could not parse JSON for', e
                     continue
 
-                xapi = converter.to_xapi(evtObj)
-                if xapi != None:
+                xapi = converter.to_xapi(evt_obj)
+                if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
                         print '{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
-                
 
 
 def watch(watch_file):
-    '''
-    Watch the given file for changes
-    '''
-    
+    """Watch the given file for changes."""
     wm = WatchManager()
 
     with TailHandler(watch_file) as th:
 
         notifier = Notifier(wm, th)
-        wdd = wm.add_watch(watch_file, TailHandler.MASK)
+        wm.add_watch(watch_file, TailHandler.MASK)
 
         notifier.loop()
 
         # flush queue before exiting
         th.publish_queue.publish()
-
 
     print 'Exiting'
 

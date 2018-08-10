@@ -1,24 +1,26 @@
-import json, re, xml.etree.ElementTree as ET
+"""Convert tracking log entries to xAPI statements."""
+
+import json
 
 
-def merge(d1,d2):
+def merge(d1, d2):
 
-    if isinstance(d1,dict) and isinstance(d2,dict):
+    if isinstance(d1, dict) and isinstance(d2, dict):
 
         final = {}
-        for k,v in d1.items()+d2.items():
+        for k, v in d1.items() + d2.items():
             if k not in final:
                 final[k] = v
             else:
                 final[k] = merge(final[k], v)
 
         return final
-    
-    elif d2 != None:
+
+    elif d2 is not None:
         return d2
-    
     else:
         return d1
+
 
 def to_xapi(evt):
 
@@ -26,7 +28,7 @@ def to_xapi(evt):
     statement = {
         'actor': {
             'account': {
-                'homePage': 'http://'+evt['host'],
+                'homePage': 'http://' + evt['host'],
                 'name': evt['username']
             },
             'name': evt['username']
@@ -59,13 +61,13 @@ def to_xapi(evt):
                     'raw': evt['event']['grade'],
                     'min': 0,
                     'max': evt['event']['max_grade'],
-                    'scaled': float(evt['event']['grade'])/evt['event']['max_grade']
+                    'scaled': float(evt['event']['grade']) / evt['event']['max_grade']
                 },
                 'success': evt['event']['success'] == 'correct'
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -74,9 +76,9 @@ def to_xapi(evt):
 
             state = json.loads(evt['event']['answers']['i4x-ADL-WA_101-problem-e150ecbec170459b8f0f6aaacab41395_2_1'])
             answer = json.loads(state['answer'])
-            
+
             attempt = merge(attempt, {
-                'context': {'extensions': {'ext_id:nutrition': answer }}
+                'context': {'extensions': {'ext_id:nutrition': answer}}
             })
 
         pf = merge(statement, {
@@ -98,24 +100,23 @@ def to_xapi(evt):
                     'raw': evt['event']['grade'],
                     'min': 0,
                     'max': evt['event']['max_grade'],
-                    'scaled': float(evt['event']['grade'])/evt['event']['max_grade']
+                    'scaled': float(evt['event']['grade']) / evt['event']['max_grade']
                 },
                 'success': evt['event']['success'] == 'correct'
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
 
         return attempt, pf
 
-
     # event indicates a video was loaded
     elif evt['event_type'] == 'load_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -128,12 +129,12 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Loaded Video" }
+                    'name': {'en-US': "Loaded Video"}
                 }
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -143,7 +144,7 @@ def to_xapi(evt):
     # event indicates a video was played
     elif evt['event_type'] == 'play_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -156,7 +157,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Played Video" }
+                    'name': {'en-US': "Played Video"}
                 }
             },
             'result': {
@@ -166,7 +167,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -176,7 +177,7 @@ def to_xapi(evt):
     # event indicates a video was paused
     elif evt['event_type'] == 'pause_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -189,7 +190,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Paused Video" }
+                    'name': {'en-US': "Paused Video"}
                 }
             },
             'result': {
@@ -199,7 +200,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -209,7 +210,7 @@ def to_xapi(evt):
     # event indicates a video was stopped
     elif evt['event_type'] == 'stop_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -222,7 +223,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Completed Video" }
+                    'name': {'en-US': "Completed Video"}
                 }
             },
             'result': {
@@ -232,7 +233,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -242,7 +243,7 @@ def to_xapi(evt):
     # event indicates a video was seeked
     elif evt['event_type'] == 'seek_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -255,7 +256,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Video seek" }
+                    'name': {'en-US': "Video seek"}
                 }
             },
             'result': {
@@ -267,7 +268,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -277,7 +278,7 @@ def to_xapi(evt):
     # event indicates a video speed was changed
     elif evt['event_type'] == 'speed_change_video':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -290,7 +291,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Video speed change" }
+                    'name': {'en-US': "Video speed change"}
                 }
             },
             'result': {
@@ -302,7 +303,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -312,7 +313,7 @@ def to_xapi(evt):
     # event indicates a video transcript was hidden
     elif evt['event_type'] == 'hide_transcript':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -325,7 +326,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Video transcript hidden" }
+                    'name': {'en-US': "Video transcript hidden"}
                 }
             },
             'result': {
@@ -335,7 +336,7 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
@@ -345,7 +346,7 @@ def to_xapi(evt):
     # event indicates a video transcript was shown
     elif evt['event_type'] == 'show_transcript':
 
-        event = json.loads(evt['event']);
+        event = json.loads(evt['event'])
 
         stmt = merge(statement, {
             'verb': {
@@ -358,7 +359,7 @@ def to_xapi(evt):
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
                 'definition': {
-                    'name': {'en-US': "Video transcript shown" }
+                    'name': {'en-US': "Video transcript shown"}
                 }
             },
             'result': {
@@ -368,13 +369,13 @@ def to_xapi(evt):
             },
             'context': {
                 'contextActivities': {
-                    'parent': [{'id': 'i4x://'+evt['context']['course_id']}]
+                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
                 }
             }
         })
 
         return (stmt, )
-        
+
     # event indicates a complete button in the PRT has been clicked
     elif evt['event_type'] == 'prt_complete':
 
