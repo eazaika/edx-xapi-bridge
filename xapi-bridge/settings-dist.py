@@ -9,3 +9,5 @@ PUBLISH_MAX_PAYLOAD = 10
 LRS_ENDPOINT = 'https://lrs.adlnet.gov/xAPI/'
 LRS_USERNAME = 'fakeuser'
 LRS_PASSWORD = 'fakepassword'
+
+EDX_PLATFORM_URI = 'https://open.edx.org'
