@@ -2,6 +2,9 @@
 
 import json
 
+import constants
+import settings
+
 
 def merge(d1, d2):
 
