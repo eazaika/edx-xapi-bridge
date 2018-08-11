@@ -31,87 +31,86 @@ def to_xapi(evt):
     statement = {
         'actor': {
             'account': {
-                'homePage': 'http://' + evt['host'],
+                'homePage': '{}/u/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['username']),
                 'name': evt['username']
             },
             'name': evt['username']
         },
         'timestamp': evt['time'],
         'context': {
-            'platform': 'open.edx.org'
+            'platform': settings.OPENEDX_PLATFORM_URI
         }
     }
 
     # event indicates a problem has been attempted
     if evt['event_type'] == 'problem_check' and evt['event_source'] == 'server':
 
-        attempt = merge(statement, {
-            'verb': {
-                'id': 'http://adlnet.gov/expapi/verbs/attempted',
-                'display': {
-                    'en-US': 'attempted'
-                }
-            },
-            'object': {
-                'objectType': 'Activity',
-                'id': evt['event']['problem_id'],
-                'definition': {
-                    'name': {'en-US': evt['context']['module']['display_name']}
-                }
-            },
-            'result': {
-                'score': {
-                    'raw': evt['event']['grade'],
-                    'min': 0,
-                    'max': evt['event']['max_grade'],
-                    'scaled': float(evt['event']['grade']) / evt['event']['max_grade']
-                },
-                'success': evt['event']['success'] == 'correct'
-            },
-            'context': {
-                'contextActivities': {
-                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
-                }
+        xapi_context = {
+            'contextActivities': {
+                'parent': [
+                    {
+                        'id': '{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
+                        'definition': {
+                            'name': {
+                                'en-US': evt['context']['course_id'],
+                            },
+                            'type': constants.XAPI_ACTIVITY_COURSE
+                        }
+                    },
+                    {
+                        'id': evt['referer'],
+                        'definition': {
+                            'name': {
+                                'en-US': evt['context']['module']['display_name'],
+                            },
+                            'type': constants.XAPI_ACTIVITY_BLOCK
+                        }
+                    }
+                ],
+                'other': [
+                    {
+                        'id': evt['referer'],
+                        'definition': {
+                            'type': constants.XAPI_CONTEXT_REFERRER,
+                        }
+                    }
+                ]
+
             }
+        }
+
+        xapi_obj = {
+            'objectType': 'Activity',
+            'id': '{}{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['path']),
+            'definition': {
+                'type': constants.XAPI_ACTIVITY_QUESTION,
+                'name': {'en-US': evt['event_type']}
+            }
+        }
+
+        xapi_result = {
+            'score': {
+                'raw': evt['event']['grade'],
+                'min': 0,
+                'max': evt['event']['max_grade'],
+                'scaled': float(evt['event']['grade']) / evt['event']['max_grade']
+            },
+            'success': evt['event']['success'] == 'correct',
+            # 'response': evt['event']['submission']['answer']
+        }
+
+        attempt = merge(statement, {
+            'verb': constants.XAPI_VERB_ATTEMPTED,
+            'object': xapi_obj,
+            'result': xapi_result,
+            'context': xapi_context
         })
 
-        if 'i4x-ADL-WA_101-problem-e150ecbec170459b8f0f6aaacab41395_2_1' in evt['event']['answers']:
-
-            state = json.loads(evt['event']['answers']['i4x-ADL-WA_101-problem-e150ecbec170459b8f0f6aaacab41395_2_1'])
-            answer = json.loads(state['answer'])
-
-            attempt = merge(attempt, {
-                'context': {'extensions': {'ext_id:nutrition': answer}}
-            })
-
         pf = merge(statement, {
-            'verb': {
-                'id': 'http://adlnet.gov/expapi/verbs/passed' if evt['event']['success'] == 'correct' else 'http://adlnet.gov/expapi/verbs/failed',
-                'display': {
-                    'en-US': 'passed' if evt['event']['success'] == 'correct' else 'failed'
-                }
-            },
-            'object': {
-                'objectType': 'Activity',
-                'id': evt['event']['problem_id'],
-                'definition': {
-                    'name': {'en-US': evt['context']['module']['display_name']}
-                }
-            },
-            'result': {
-                'score': {
-                    'raw': evt['event']['grade'],
-                    'min': 0,
-                    'max': evt['event']['max_grade'],
-                    'scaled': float(evt['event']['grade']) / evt['event']['max_grade']
-                },
-                'success': evt['event']['success'] == 'correct'
-            },
-            'context': {
-                'contextActivities': {
-                    'parent': [{'id': 'i4x://' + evt['context']['course_id']}]
-                }
-            }
+            'verb': constants.XAPI_VERB_PASSED if evt['event']['success'] == 'correct' else constants.XAPI_VERB_FAILED,
+            'object': xapi_obj,
+            'result': xapi_result,
+            'context': xapi_context
         })
 
         return attempt, pf
@@ -122,12 +121,7 @@ def to_xapi(evt):
         event = json.loads(evt['event'])
 
         stmt = merge(statement, {
-            'verb': {
-                'id': 'http://adlnet.gov/expapi/verbs/launched',
-                'display': {
-                    'en-US': 'Launched'
-                }
-            },
+            'verb': constants.XAPI_VERB_LAUNCHED,
             'object': {
                 'objectType': 'Activity',
                 'id': 'i4x://' + evt['context']['course_id'] + event['id'],
