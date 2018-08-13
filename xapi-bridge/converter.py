@@ -63,7 +63,6 @@ def to_xapi(evt):
 
         return (xapi, )
 
-
     # event indicates a course unenrollment has occurred
     elif evt['event_type'] == 'edx.course.enrollment.deactivated':
         xapi_obj = {
@@ -77,6 +76,25 @@ def to_xapi(evt):
 
         xapi = merge(statement, {
             'verb': constants.XAPI_VERB_UNREGISTERED,
+            'object': xapi_obj,
+        })
+
+        return (xapi, )
+
+    # event indicates a course has been completed by virtue of a certificate being received
+    # eventually this will not be the marker of course completion
+    elif evt['event_type'] == 'edx.certificate.created':
+        xapi_obj = {
+            'objectType': 'Activity',
+            'id': '{}/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
+            'definition': {
+                'type': constants.XAPI_ACTIVITY_COURSE,
+                'name': {'en-US': 'Course'}
+            }
+        }
+
+        xapi = merge(statement, {
+            'verb': constants.XAPI_VERB_COMPLETED,
             'object': xapi_obj,
         })
 

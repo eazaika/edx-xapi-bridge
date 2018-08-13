@@ -8,6 +8,7 @@ XAPI_VERB_PASSED = {"id": "http://adlnet.gov/expapi/verbs/passed", "display": {"
 XAPI_VERB_LAUNCHED = {"id": "http://adlnet.gov/expapi/verbs/launched", "display": {"en-US": "launched", "en-GB": "launched"}}
 XAPI_VERB_REGISTERED = {"id": "http://adlnet.gov/expapi/verbs/registered", "display": {"en-US": "enrolled", "en-GB": "enroled"}}
 XAPI_VERB_UNREGISTERED = {"id": "http://id.tincanapi.com/verb/unregistered", "display": {"en-US": "unenrolled", "en-GB": "unenroled"}}
+XAPI_VERB_COMPLETED = {"id": "http://adlnet.gov/expapi/verbs/completed", "display": {"en-US": "completed", "en-GB": "completed"}}
 
 # activities
 XAPI_ACTIVITY_QUESTION = 'http://adlnet.gov/expapi/activities/question'
