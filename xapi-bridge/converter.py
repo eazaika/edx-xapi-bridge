@@ -45,8 +45,45 @@ def to_xapi(evt):
         }
     }
 
+    # event indicates a course enrollment has occurred
+    if evt['event_type'] == 'edx.course.enrollment.activated':
+        xapi_obj = {
+            'objectType': 'Activity',
+            'id': '{}/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
+            'definition': {
+                'type': constants.XAPI_ACTIVITY_COURSE,
+                'name': {'en-US': 'Course'}
+            }
+        }
+
+        xapi = merge(statement, {
+            'verb': constants.XAPI_VERB_REGISTERED,
+            'object': xapi_obj,
+        })
+
+        return (xapi, )
+
+
+    # event indicates a course unenrollment has occurred
+    if evt['event_type'] == 'edx.course.enrollment.deactivated':
+        xapi_obj = {
+            'objectType': 'Activity',
+            'id': '{}/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
+            'definition': {
+                'type': constants.XAPI_ACTIVITY_COURSE,
+                'name': {'en-US': 'Course'}
+            }
+        }
+
+        xapi = merge(statement, {
+            'verb': constants.XAPI_VERB_UNREGISTERED,
+            'object': xapi_obj,
+        })
+
+        return (xapi, )
+
     # event indicates a problem has been attempted
-    if evt['event_type'] == 'problem_check' and evt['event_source'] == 'server':
+    elif evt['event_type'] == 'problem_check' and evt['event_source'] == 'server':
 
         xapi_context = {
             'contextActivities': {
