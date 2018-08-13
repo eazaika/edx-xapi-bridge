@@ -65,7 +65,7 @@ def to_xapi(evt):
 
 
     # event indicates a course unenrollment has occurred
-    if evt['event_type'] == 'edx.course.enrollment.deactivated':
+    elif evt['event_type'] == 'edx.course.enrollment.deactivated':
         xapi_obj = {
             'objectType': 'Activity',
             'id': '{}/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
