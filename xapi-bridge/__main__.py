@@ -52,7 +52,7 @@ class QueueManager:
             r = requests.post(
                 url, data=json.dumps(self.cache),
                 auth=(settings.LRS_USERNAME, settings.LRS_PASSWORD),
-                headers={'X-Experience-API-Version': '1.0.1', 'Content-Type': 'application/json'}
+                headers={'X-Experience-API-Version': '1.0.3', 'Content-Type': 'application/json'}
             )
 
             print r.text
