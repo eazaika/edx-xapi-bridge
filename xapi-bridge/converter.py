@@ -26,6 +26,9 @@ def merge(d1, d2):
 
 
 def to_xapi(evt):
+    """Return tuple of xAPI statements or None if ignored or unhandled event type."""
+    if evt['event_type'] in settings.IGNORED_EVENT_TYPES:
+        return
 
     # set up common elements in statement
     statement = {
@@ -116,6 +119,7 @@ def to_xapi(evt):
         return attempt, pf
 
     # event indicates a video was loaded
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'load_video':
 
         event = json.loads(evt['event'])
@@ -139,6 +143,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video was played
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'play_video':
 
         event = json.loads(evt['event'])
@@ -172,6 +177,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video was paused
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'pause_video':
 
         event = json.loads(evt['event'])
@@ -205,6 +211,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video was stopped
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'stop_video':
 
         event = json.loads(evt['event'])
@@ -238,6 +245,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video was seeked
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'seek_video':
 
         event = json.loads(evt['event'])
@@ -273,6 +281,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video speed was changed
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'speed_change_video':
 
         event = json.loads(evt['event'])
@@ -308,6 +317,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video transcript was hidden
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'hide_transcript':
 
         event = json.loads(evt['event'])
@@ -341,6 +351,7 @@ def to_xapi(evt):
         return (stmt, )
 
     # event indicates a video transcript was shown
+    # TODO: event type has bad (not URI) object format
     elif evt['event_type'] == 'show_transcript':
 
         event = json.loads(evt['event'])
@@ -373,11 +384,5 @@ def to_xapi(evt):
 
         return (stmt, )
 
-    # event indicates a complete button in the PRT has been clicked
-    elif evt['event_type'] == 'prt_complete':
-
-        stmt = merge(evt['event'], statement)
-        return stmt,
-
     else:
-        return ()
+        return None

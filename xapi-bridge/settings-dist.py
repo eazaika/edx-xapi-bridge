@@ -11,3 +11,7 @@ LRS_USERNAME = 'fakeuser'
 LRS_PASSWORD = 'fakepassword'
 
 EDX_PLATFORM_URI = 'https://open.edx.org'
+
+# events configuration
+# list of ignored event ids
+IGNORED_EVENT_TYPES = []
