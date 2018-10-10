@@ -12,7 +12,7 @@ LRS_PASSWORD = 'fakepassword'
 LRS_BASICAUTH_HASH = None
 
 OPENEDX_PLATFORM_URI = 'https://open.edx.org'
-OPENEDX_USER_API_URI = OPENEDX_PLATFORM_URI + "/api/user/v1/accounts/"
+OPENEDX_USER_API_URI = OPENEDX_PLATFORM_URI + "/api/user/v1/"
 OPENEDX_OAUTH2_CLIENT_ID = "foo"
 OPENEDX_OAUTH2_CLIENT_SECRET = "notasecret"
 

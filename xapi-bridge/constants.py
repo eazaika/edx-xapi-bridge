@@ -17,3 +17,6 @@ XAPI_ACTIVITY_BLOCK = 'https://w3id.org/xapi/cmi5/activities/block'
 
 # context
 XAPI_CONTEXT_REFERRER = "http://id.tincanapi.com/extension/referrer"
+
+# Open edX
+OPENEDX_OAUTH2_TOKEN_URL = "/oauth2/access_token"
