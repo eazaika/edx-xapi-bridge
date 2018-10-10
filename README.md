@@ -1,4 +1,4 @@
-edX Experience API Bridge
+ Experience API Bridge
 =========================
 
 Python Parse the edX tracking log, convert the events to xAPI format, and publish them to an LRS.
@@ -40,7 +40,24 @@ Rename the file *xapi-bridge/settings-dist.py* to *settings.py* and change the p
 
 * `OPENEDX_PLATFORM_URI`
 
-    The URI to the Open edX LMS generating the parsed tracking logs.  Used to complete the `platform` parameter of the statements, and to access the User API for user information such as values for `mbox`.
+    The URI to the Open edX LMS generating the parsed tracking logs.  Used to complete the `platform` parameter of the statements, and to access the User API for user information such as values for `mbox`. This should use the HTTPS scheme if the connection is not made over a private network.
+
+* *OPENEDX_OAUTH2_CLIENT_ID*, *OPENEDX_OAUTH2_CLIENT_SECRET*
+
+    The client_id and client_secret of an OAuth2 client created in your Open edX LMS.  This is used to authenticate to the LMS User API to retrieve email and name for users used as Actors in your xAPI statements.  To generate these,
+
+    * Log in to your LMS with superuser credentials
+    * Navigate to `/admin/oauth2/client/`
+    * Click "Add client"
+    * Create a new OAuth2 client specifying
+      *  name: This can be anything but "edx-xapi-bridge" is a good default.
+      *  user: `xapi_bridge`.  If you used [the Ansible role](https://github.com/appsembler/configuration/blob/appsembler/ficus/master/playbooks/roles/xapi_bridge/) for setting up xapi_bridge, this user already exists in your LMS.
+      *  For url and redirect_url you can just specify https://github.com/appsembler/edx-xapi-bridge.  These aren't used since the xAPI bridge doesn't expose any URLs, but serve to indicate which application the client is for
+      *  For client type, specify Confidential (Web application)
+      *  Logout URL can be left blank
+      *  Copy the auto-generated client id and client secret to *OPENEDX_OAUTH2_CLIENT_ID* and *OPENEDX_OAUTH2_CLIENT_SECRET* in your settings file.
+    *  Also, if you are going to connect without using HTTPS (which you should only do for testing) you will need to set `EDXAPP_OAUTH_ENFORCE_SECURE: false` in your `lms.env.json` file.
+      
 
 * `IGNORED_EVENT_TYPES`
     
@@ -60,8 +77,7 @@ $
 
 The program can optionally take one argument, which is the file path to the log to be watched. If omitted, it is assumed to be the default location in the edX Development Stack, `/edx/var/log/tracking.log`.
 
-**NOTE**: The tracking log typically has very strict permissions on it, so make sure the user account running the xAPI-Bridge has permissions to read the log file. (The `xapi_bridge` Ansible role will handle this.)
-
+**NOTE**: The tracking log typically has very strict permissions on it, so make sure the user account running the xAPI-Bridge has permissions to read the log file.  If you used [the Ansible role](https://github.com/appsembler/configuration/blob/appsembler/ficus/master/playbooks/roles/xapi_bridge/) for setting up xapi_bridge, your xapi user already has these permissions.
 
 ## License
 
