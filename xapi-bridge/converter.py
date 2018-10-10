@@ -34,16 +34,14 @@ def to_xapi(evt):
     if evt['event_type'] in settings.IGNORED_EVENT_TYPES:
         return
 
+    edx_user_info = user_api_client.get_edx_user_info(evt['username'])
+
     # set up common elements in statement
     statement = {
         'actor': {
             'objectType': 'Agent',
-            'account': {
-                'homePage': '{}/u/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['username']),
-                'name': evt['username']
-            },
-            'name': user_api_client.get_edx_user_info(evt['username'])['fullname'],
-            'mbox': "mailto:{}".format(user_api_client.get_edx_user_info(evt['username'])['email'])
+            'name': edx_user_info['fullname'],
+            'mbox': "mailto:{}".format(edx_user_info['email'])
         },
         'timestamp': evt['time'],
         'context': {

@@ -47,7 +47,8 @@ class UserApiClient(object):
             dict with keys 'email', 'fullname'
         """
         if username == '':
-            return ''
+            # we shouldn't even get to this point I think
+            return {'email': '', 'fullname': ''}
         try:
             resp = self.client.accounts(username).get()
             return {'email': resp['email'], 'fullname': resp['name']}

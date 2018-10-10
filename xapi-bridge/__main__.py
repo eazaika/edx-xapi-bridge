@@ -117,7 +117,7 @@ class TailHandler(ProcessEvent):
                 if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
-                        print '{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
+                        print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
 
 
 def watch(watch_file):
