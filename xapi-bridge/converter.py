@@ -37,12 +37,13 @@ def to_xapi(evt):
     # set up common elements in statement
     statement = {
         'actor': {
+            'objectType': 'Agent',
             'account': {
                 'homePage': '{}/u/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['username']),
                 'name': evt['username']
             },
-            'name': evt['username'],
-            'mbox': user_api_client.get_edx_user_email(evt['username'])
+            'name': user_api_client.get_edx_user_info(evt['username'])['fullname'],
+            'mbox': "mailto:{}".format(user_api_client.get_edx_user_info(evt['username'])['email'])
         },
         'timestamp': evt['time'],
         'context': {

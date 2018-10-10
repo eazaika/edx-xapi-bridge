@@ -1,11 +1,16 @@
 """Utility functions for xapi bridge."""
 
+import logging
 
 from edx_rest_api_client.client import EdxRestApiClient
-from requests import Session
+from requests.exceptions import ConnectionError, Timeout  # pylint: disable=unused-import
+from slumber.exceptions import SlumberBaseException
 
 import constants
 import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserApiClient(object):
@@ -33,37 +38,22 @@ class UserApiClient(object):
             username="xapi_bridge", oauth_access_token=token[0]
         )
 
-    def get_edx_user_email(self, username):
+    def get_edx_user_info(self, username):
         """
         Query the User API for the course details of the given course_id.
         Args:
             username (str): The username of the user
         Returns:
-            string: The email associated with the username
+            dict with keys 'email', 'fullname'
         """
         if username == '':
             return ''
         try:
             resp = self.client.accounts(username).get()
-            return resp['email']
-        except Exception:
-            #except (SlumberBaseException, ConnectionError, Timeout) as exc:
-            # LOGGER.exception(
-            #     'Failed to retrieve course enrollment details for course [%s] due to: [%s]',
-            #     course_id, str(exc)
-            # )
-            return ''
+            return {'email': resp['email'], 'fullname': resp['name']}
+        except (SlumberBaseException, ConnectionError, Timeout) as exc:
+            logger.exception(
+                'Failed to retrieve user details for username {} due to: {}'.format(username, str(exc))
+            )
+            # should we interrupt the publishing of the statement here?
 
-
-# def get_edx_user_email(username):
-#     """Retrieve user email from cache or Open edX user api."""
-#     headers = {'X-Edx-Api-Key': '{}'.format(settings.OPENEDX_EDX_API_KEY)}
-#     api_url = '{}{}'.format(settings.OPENEDX_USER_API_URI, username)
-#     response = requests.get(api_url, headers=headers)
-#     import pdb; pdb.set_trace()
-#     if response.status_code == 200:
-#         email = response.email
-#         return email
-#     else:
-#         # raise some specific exception type
-#         pass
