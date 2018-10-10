@@ -4,6 +4,10 @@ import json
 
 import constants
 import settings
+import lms_api
+
+
+user_api_client = lms_api.UserApiClient()
 
 
 def merge(d1, d2):
@@ -37,7 +41,8 @@ def to_xapi(evt):
                 'homePage': '{}/u/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['username']),
                 'name': evt['username']
             },
-            'name': evt['username']
+            'name': evt['username'],
+            'mbox': user_api_client.get_edx_user_email(evt['username'])
         },
         'timestamp': evt['time'],
         'context': {

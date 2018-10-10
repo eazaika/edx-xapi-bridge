@@ -10,7 +10,10 @@ LRS_ENDPOINT = 'https://lrs.adlnet.gov/xAPI/'
 LRS_USERNAME = 'fakeuser'
 LRS_PASSWORD = 'fakepassword'
 
-EDX_PLATFORM_URI = 'https://open.edx.org'
+OPENEDX_PLATFORM_URI = 'https://open.edx.org'
+OPENEDX_USER_API_URI = OPENEDX_PLATFORM_URI + "/api/user/v1/accounts/"
+OPENEDX_OAUTH2_CLIENT_ID = "foo"
+OPENEDX_OAUTH2_CLIENT_SECRET = "notasecret"
 
 # events configuration
 # list of ignored event ids

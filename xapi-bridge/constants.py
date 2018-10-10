@@ -15,5 +15,5 @@ XAPI_ACTIVITY_QUESTION = 'http://adlnet.gov/expapi/activities/question'
 XAPI_ACTIVITY_COURSE = 'http://adlnet.gov/expapi/activities/course'
 XAPI_ACTIVITY_BLOCK = 'https://w3id.org/xapi/cmi5/activities/block'
 
-#context
+# context
 XAPI_CONTEXT_REFERRER = "http://id.tincanapi.com/extension/referrer"
