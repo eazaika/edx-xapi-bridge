@@ -49,14 +49,21 @@ class QueueManager:
 
             # push statements to the lrs
             url = urljoin(settings.LRS_ENDPOINT, 'statements')
+            req_headers = {
+                'X-Experience-API-Version': '1.0.3',
+                'Content-Type': 'application/json',
+            }
+
+            if settings.LRS_BASICAUTH_HASH is not None:
+                req_auth = None
+                req_headers.update({'Authorization': 'Basic {}'.format(settings.LRS_BASICAUTH_HASH)})
+            else:
+                req_auth = (settings.LRS_USERNAME, settings.LRS_PASSWORD)
+
             r = requests.post(
                 url, data=json.dumps(self.cache),
-                # auth=(settings.LRS_USERNAME, settings.LRS_PASSWORD),
-                headers={
-                    'X-Experience-API-Version': '1.0.3',
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Basic {}'.format(settings.LRS_BASICAUTH_HASH)
-                }
+                auth=req_auth,
+                headers=req_headers
             )
 
             print r.text
