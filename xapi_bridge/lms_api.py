@@ -6,8 +6,8 @@ from edx_rest_api_client.client import EdxRestApiClient
 from requests.exceptions import ConnectionError, Timeout  # pylint: disable=unused-import
 from slumber.exceptions import SlumberBaseException
 
-import constants
-import settings
+from xapi_bridge import constants
+from xapi_bridge import settings
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,9 @@ class UserApiClient(object):
         Returns:
             dict with keys 'email', 'fullname'
         """
+
+        # TODO: store/retrieve already retrieved in memcached, with timeout
+
         if username == '':
             # we shouldn't even get to this point I think
             return {'email': '', 'fullname': ''}
@@ -58,3 +61,5 @@ class UserApiClient(object):
             )
             # should we interrupt the publishing of the statement here?
 
+
+user_api_client = UserApiClient()

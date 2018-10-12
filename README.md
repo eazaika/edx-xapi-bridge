@@ -70,7 +70,7 @@ There is no process management yet, so just run the module directly:
 
 ```sh
 $ source env/bin/activate
-(env)$ python xapi-bridge [watchfile]
+(env)$ python xapi_bridge [watchfile]
 (env)$ deactivate
 $
 ```

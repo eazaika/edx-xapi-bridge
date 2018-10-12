@@ -4,3 +4,7 @@ pyinotify==0.9.4
 requests==2.4.0
 wsgiref==0.1.2
 edx_rest_api_client==1.8.2
+tincan==0.0.5
+
+# install the xapi_bridge
+-e .

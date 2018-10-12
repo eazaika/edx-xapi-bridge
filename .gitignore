@@ -1,6 +1,7 @@
 *.pyc
 *.swp
+*.egg-info
 
 env
 
-xapi-bridge/settings.py
+xapi_bridge/settings.py

@@ -1,15 +1,17 @@
+"""Main process with queue management and remote LRS communication."""
+
+
 import sys
 import os
 import json
 import threading
-from urlparse import urljoin
-
-import requests
 
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
+from tincan import statement_list
 
-import converter
-import settings
+from xapi_bridge import converter
+from xapi_bridge import settings
+from xapi_bridge import client
 
 
 class QueueManager:
@@ -47,31 +49,23 @@ class QueueManager:
         # make sure no new statements are added while publishing
         with self.cache_lock:
 
-            # push statements to the lrs
-            url = urljoin(settings.LRS_ENDPOINT, 'statements')
-            req_headers = {
-                'X-Experience-API-Version': '1.0.3',
-                'Content-Type': 'application/json',
-            }
+            # build StatementList
+            statements = statement_list.StatementList(self.cache)
+            lrs_resp = client.lrs.save_statements(statements)
 
-            if settings.LRS_BASICAUTH_HASH is not None:
-                req_auth = None
-                req_headers.update({'Authorization': 'Basic {}'.format(settings.LRS_BASICAUTH_HASH)})
+            if not lrs_resp['success']:
+                print lrs_resp.content
+
+                # clear cache and cancel any pending publish timeouts
+                self.cache = []
+                if self.publish_timer is not None:
+                    self.publish_timer.cancel()
             else:
-                req_auth = (settings.LRS_USERNAME, settings.LRS_PASSWORD)
-
-            r = requests.post(
-                url, data=json.dumps(self.cache),
-                auth=req_auth,
-                headers=req_headers
-            )
-
-            print r.text
-
-            # clear cache and cancel any pending publish timeouts
-            self.cache = []
-            if self.publish_timer is not None:
-                self.publish_timer.cancel()
+                # TODO: do something smarter here
+                # what kind of retrying does RemoteLRS.save_statements do?
+                # keep the cache
+                print "Failed sending {} to remote LRS".format(lrs_resp.request)
+                raise Exception
 
 
 class TailHandler(ProcessEvent):
@@ -117,7 +111,7 @@ class TailHandler(ProcessEvent):
                 if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
-                        print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
+                        # print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
 
 
 def watch(watch_file):
