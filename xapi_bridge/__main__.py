@@ -53,8 +53,9 @@ class QueueManager:
             statements = statement_list.StatementList(self.cache)
             lrs_resp = client.lrs.save_statements(statements)
 
-            if not lrs_resp['success']:
-                print lrs_resp.content
+            if lrs_resp.success:
+                for st in lrs_resp.content:
+                    print "Succeeded sending {}".format(st.to_json())
 
                 # clear cache and cancel any pending publish timeouts
                 self.cache = []
@@ -63,6 +64,7 @@ class QueueManager:
             else:
                 # TODO: do something smarter here
                 # what kind of retrying does RemoteLRS.save_statements do?
+                # what if some statements are successful and some not?
                 # keep the cache
                 print "Failed sending {} to remote LRS".format(lrs_resp.request)
                 raise Exception
