@@ -1,7 +1,7 @@
 """Convert tracking log entries to xAPI statements."""
 
 from xapi_bridge import settings
-from xapi_bridge.statements import base, course
+from xapi_bridge.statements import base, course, problem, video
 
 
 TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
@@ -11,10 +11,10 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'edx.course.enrollment.deactivated': course.CourseUnenrollmentStatement,
 
     # course completion
-    'edx.certificate.created': base.LMSTrackingLogStatement,
+    'edx.certificate.created': course.CourseCompletionStatement,
 
     # problems
-    'problem_check': base.LMSTrackingLogStatement,
+    'problem_check': problem.ProblemCheckStatement,
 
     # video
     'load_video': base.LMSTrackingLogStatement,
@@ -29,102 +29,18 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
 }
 
 
-# def merge(d1, d2):
-
-#     if isinstance(d1, dict) and isinstance(d2, dict):
-
-#         final = {}
-#         for k, v in d1.items() + d2.items():
-#             if k not in final:
-#                 final[k] = v
-#             else:
-#                 final[k] = merge(final[k], v)
-
-#         return final
-
-#     elif d2 is not None:
-#         return d2
-#     else:
-#         return d1
-
-
 def to_xapi(evt):
     """Return tuple of xAPI statements or None if ignored or unhandled event type."""
-
     if evt['event_type'] in settings.IGNORED_EVENT_TYPES:
         return
 
     try:
         statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[evt['event_type']]
         statement = statement_class(evt)
-        return (statement, )
+        if hasattr(statement, 'version'):  # make sure it's a proper statement
+            return (statement, )
     except KeyError:
         return
-
-    # event indicates a course has been completed by virtue of a certificate being received
-    # eventually this will not be the marker of course completion
-    # elif evt['event_type'] == 'edx.certificate.created':
-    #     xapi_obj = {
-    #         'objectType': 'Activity',
-    #         'id': '{}/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
-    #         'definition': {
-    #             'type': constants.XAPI_ACTIVITY_COURSE,
-    #             'name': {'en-US': 'Course'}
-    #         }
-    #     }
-
-    #     xapi = merge(statement, {
-    #         'verb': constants.XAPI_VERB_COMPLETED,
-    #         'object': xapi_obj,
-    #     })
-
-    #     return (xapi, )
-
-    # # event indicates a problem has been attempted
-    # elif evt['event_type'] == 'problem_check' and evt['event_source'] == 'server':
-
-    #     xapi_context = {
-    #         'contextActivities': {
-    #             'parent': [
-    #                 {
-    #                     'id': '{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['course_id']),
-    #                     'definition': {
-    #                         'name': {
-    #                             'en-US': evt['context']['course_id'],
-    #                         },
-    #                         'type': constants.XAPI_ACTIVITY_COURSE
-    #                     }
-    #                 },
-    #                 {
-    #                     'id': evt['referer'],
-    #                     'definition': {
-    #                         'name': {
-    #                             'en-US': evt['context']['module']['display_name'],
-    #                         },
-    #                         'type': constants.XAPI_ACTIVITY_BLOCK
-    #                     }
-    #                 }
-    #             ],
-    #             'other': [
-    #                 {
-    #                     'id': evt['referer'],
-    #                     'definition': {
-    #                         'type': constants.XAPI_CONTEXT_REFERRER,
-    #                     }
-    #                 }
-    #             ]
-
-    #         }
-    #     }
-
-    #     xapi_obj = {
-    #         'objectType': 'Activity',
-    #         'id': '{}{}'.format(settings.OPENEDX_PLATFORM_URI, evt['context']['path']),
-    #         'definition': {
-    #             'type': constants.XAPI_ACTIVITY_QUESTION,
-    #             'name': {'en-US': evt['event_type']}
-    #         }
-    #     }
 
     #     xapi_result = {
     #         'score': {

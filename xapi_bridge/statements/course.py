@@ -7,6 +7,16 @@ import base
 from xapi_bridge import constants, settings
 
 
+class CourseActivityDefinition(ActivityDefinition):
+
+    def __init__(self, *args, **kwargs):
+        kwargs.update({
+            'type': constants.XAPI_ACTIVITY_COURSE,
+            'name': LanguageMap({'en-US': 'Course'}),
+            'description': LanguageMap({'en-US': 'A course delivered through Open edX'})
+        })
+        super(CourseActivityDefinition, self).__init__(*args, **kwargs)
+
 
 class CourseStatement(base.LMSTrackingLogStatement):
     """ Statement base for course enrollment and unenrollment events."""
@@ -18,11 +28,7 @@ class CourseStatement(base.LMSTrackingLogStatement):
         """
         return Activity(
             id='{}/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
-            definition=ActivityDefinition(
-                type=constants.XAPI_ACTIVITY_COURSE,
-                name=LanguageMap({'en-US': 'Course'}),
-                description=LanguageMap({'en-US': 'A course delivered through Open edX'}),
-            ),
+            definition=CourseActivityDefinition()
         )
 
 
@@ -51,6 +57,8 @@ class CourseCompletionStatement(CourseStatement):
 
     # event indicates a course has been completed by virtue of a certificate being received
     # eventually this will not be the marker of course completion
+
+    # TODO: what happens when a course is un-completed? (e.g., certificate is revoked or other)
 
     def get_verb(self, event):
         return Verb(

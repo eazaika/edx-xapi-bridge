@@ -4,10 +4,9 @@
 # indebted to authors of https://github.com/edx/edx-enterprise/tree/master/integrated_channels/xapi
 
 
-from tincan import Agent, Context, Statement
+from tincan import Agent, Context, Statement, ActivityDefinition, LanguageMap
 
-from xapi_bridge import lms_api
-from xapi_bridge import settings
+from xapi_bridge import constants, lms_api, settings
 
 
 class LMSTrackingLogStatement(Statement):
@@ -51,3 +50,13 @@ class LMSTrackingLogStatement(Statement):
     def get_result(self, event):
         # Not all activities have a result.
         return None
+
+
+class ReferringActivityDefinition(ActivityDefinition):
+    def __init__(self, event, *args, **kwargs):
+        kwargs.update({
+            'type': constants.XAPI_CONTEXT_REFERRER,
+            'name': LanguageMap({'en-US': 'Referrer'}),
+            'description': LanguageMap({'en-US': 'A referring course activity'})
+        })
+        super(ReferringActivityDefinition, self).__init__(*args, **kwargs)
