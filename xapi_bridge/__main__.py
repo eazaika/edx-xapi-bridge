@@ -66,7 +66,7 @@ class QueueManager:
                 # what kind of retrying does RemoteLRS.save_statements do?
                 # what if some statements are successful and some not?
                 # keep the cache
-                print "Failed sending {} to remote LRS".format(lrs_resp.request)
+                print "Failed sending {} to remote LRS".format(lrs_resp.request.content)
                 raise Exception
 
 

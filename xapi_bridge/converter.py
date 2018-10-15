@@ -17,15 +17,28 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'problem_check': problem.ProblemCheckStatement,
 
     # video
-    'load_video': base.LMSTrackingLogStatement,
-    'play_video': base.LMSTrackingLogStatement,
-    'pause_video': base.LMSTrackingLogStatement,
-    'stop_video': base.LMSTrackingLogStatement,
-    'seek_video': base.LMSTrackingLogStatement,
-    'speed_change_video': base.LMSTrackingLogStatement,
-    'hide_transcript': base.LMSTrackingLogStatement,
-    'show_transcript': base.LMSTrackingLogStatement,
+    'ready_video': video.VideoStatement,
+    'load_video': video.VideoStatement,
+    'edx.video.loaded': video.VideoStatement,
 
+    'play_video': video.VideoPlayStatement,
+    'edx.video.played': video.VideoPlayStatement,
+
+    'pause_video': video.VideoPauseStatement,
+    'edx.video.paused': video.VideoPauseStatement,
+
+    'stop_video': video.VideoCompleteStatement,
+    'edx.video.stopped': video.VideoCompleteStatement,
+
+    'seek_video': video.VideoSeekStatement,
+    'edx.video.position.changed': video.VideoSeekStatement,
+
+    # 'show_transcript': video.VideoTranscriptStatement,
+    # 'hide_transcript': video.VideoTranscriptStatement,
+    # 'edx.video.transcript.shown': video.VideoTranscriptStatement,
+    # 'edx.video.transcript.hidden': video.VideoTranscriptStatement,
+    # 'edx.video.language_menu.shown': u'video_show_cc_menu',
+    # 'edx.video.language_menu.hidden': u'video_hide_cc_menu',
 }
 
 

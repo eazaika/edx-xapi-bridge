@@ -7,13 +7,14 @@ import base
 from xapi_bridge import constants, settings
 
 
+
 class CourseActivityDefinition(ActivityDefinition):
 
     def __init__(self, *args, **kwargs):
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_COURSE,
-            'name': LanguageMap({'en-US': 'Course'}),
-            'description': LanguageMap({'en-US': 'A course delivered through Open edX'})
+            'name': LanguageMap({'en': 'Course'}),  # TODO get course name
+            'description': LanguageMap({'en': 'A course delivered through Open edX'})
         })
         super(CourseActivityDefinition, self).__init__(*args, **kwargs)
 
@@ -63,6 +64,5 @@ class CourseCompletionStatement(CourseStatement):
     def get_verb(self, event):
         return Verb(
             id=constants.XAPI_VERB_COMPLETED,
-            display=LanguageMap({'en-US': 'completed', 'en-GB': 'completed'}),
+            display=LanguageMap({'en': 'completed'}),
         )
-
