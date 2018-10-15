@@ -3,6 +3,8 @@
 
 # indebted to authors of https://github.com/edx/edx-enterprise/tree/master/integrated_channels/xapi
 
+from copy import deepcopy
+import json
 
 from tincan import Agent, Context, Statement, ActivityDefinition, LanguageMap
 
@@ -31,9 +33,22 @@ class LMSTrackingLogStatement(Statement):
     def _get_edx_user_info(self, username):
         return self.user_api_client.get_edx_user_info(username)
 
+    def get_event_data(self, event):
+        return json.loads(event.get('event', "{}"))
+
     def get_actor(self, event):
         """Get Actor for the statement."""
         edx_user_info = self._get_edx_user_info(event['username'])
+
+        # this can happen in case a user was just deleted, or
+        # in cases a user is automatically logged out while 
+        # they are interacting with courseware (e.g., a video is playing),
+        # due to an LMS restart or other circumstance, in which
+        # case an event with no username can be sent to the tracking
+        # logs.  In this case don't send a Statement
+        if not edx_user_info['email']:
+            return None
+
         return Agent(
             name=edx_user_info['fullname'],
             mbox='mailto:{}'.format(edx_user_info['email']),

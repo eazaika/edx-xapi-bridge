@@ -1,6 +1,6 @@
 """Convert tracking log entries to xAPI statements."""
 
-from xapi_bridge import settings
+from xapi_bridge import exceptions, settings
 from xapi_bridge.statements import base, course, problem, video
 
 
@@ -33,10 +33,10 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'seek_video': video.VideoSeekStatement,
     'edx.video.position.changed': video.VideoSeekStatement,
 
-    # 'show_transcript': video.VideoTranscriptStatement,
-    # 'hide_transcript': video.VideoTranscriptStatement,
-    # 'edx.video.transcript.shown': video.VideoTranscriptStatement,
-    # 'edx.video.transcript.hidden': video.VideoTranscriptStatement,
+    'show_transcript': video.VideoTranscriptStatement,
+    'hide_transcript': video.VideoTranscriptStatement,
+    'edx.video.transcript.shown': video.VideoTranscriptStatement,
+    'edx.video.transcript.hidden': video.VideoTranscriptStatement,
     # 'edx.video.language_menu.shown': u'video_show_cc_menu',
     # 'edx.video.language_menu.hidden': u'video_hide_cc_menu',
 }
@@ -44,16 +44,24 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
 
 def to_xapi(evt):
     """Return tuple of xAPI statements or None if ignored or unhandled event type."""
-    if evt['event_type'] in settings.IGNORED_EVENT_TYPES:
+
+    # strip Video XBlock prefixes for checking
+    event_type = evt['event_type'].replace("xblock-video.", "")
+
+    if event_type in settings.IGNORED_EVENT_TYPES:
         return
 
     try:
-        statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[evt['event_type']]
+        statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[event_type]
+    except KeyError:
+        return
+
+    try:
         statement = statement_class(evt)
         if hasattr(statement, 'version'):  # make sure it's a proper statement
             return (statement, )
-    except KeyError:
-        return
+    except exceptions.XAPIMalformedStatementError:
+        print "Refusing to send statement {}".format(statement.to_json())
 
     #     xapi_result = {
     #         'score': {
