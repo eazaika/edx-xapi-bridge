@@ -34,7 +34,10 @@ class LMSTrackingLogStatement(Statement):
         return self.user_api_client.get_edx_user_info(username)
 
     def get_event_data(self, event):
-        return json.loads(event.get('event', "{}"))
+        if event['event_source'] == 'browser':
+            return json.loads(event.get('event', "{}"))
+        else:
+            return event.get('event', {})
 
     def get_actor(self, event):
         """Get Actor for the statement."""

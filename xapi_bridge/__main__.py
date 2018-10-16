@@ -50,6 +50,7 @@ class QueueManager:
         with self.cache_lock:
 
             # build StatementList
+
             statements = statement_list.StatementList(self.cache)
             lrs_resp = client.lrs.save_statements(statements)
 
