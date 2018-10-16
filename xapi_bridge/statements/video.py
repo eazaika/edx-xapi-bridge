@@ -109,10 +109,10 @@ class VideoPauseStatement(VideoStatement):
 class VideoSeekStatement(VideoStatement):
     def get_result(self, event):
         result = super(VideoSeekStatement, self).get_result(event)
-        result.extensions = Extensions(result.extensions.update({
+        result.extensions.update({
             constants.XAPI_RESULT_VIDEO_TIME_FROM: self.get_event_data(event)['old_time'],
             constants.XAPI_RESULT_VIDEO_TIME_TO: self.get_event_data(event)['new_time']
-        }))
+        })
         return result
 
 
@@ -130,10 +130,9 @@ class VideoCompleteStatement(VideoStatement):
         # profile includes concept of a completion threshold which could be below 100% anyhow
         result = super(VideoCompleteStatement, self).get_result(event)
         result.completion = True
-        result.extensions = {
-            constants.XAPI_RESULT_VIDEO_TIME: self.get_event_data(event)['currentTime'],
+        result.extensions.update({
             constants.XAPI_RESULT_VIDEO_PROGRESS: 100  # this isn't necessarily true if student skipped content
-        }
+        })
         return result
 
 
@@ -142,10 +141,10 @@ class VideoTranscriptStatement(VideoStatement):
     def get_result(self, event):
         # xAPI video profile doesn't differentiate between transcripts, subtitles, and closed captioning :(
         result = super(VideoTranscriptStatement, self).get_result(event)
-        result.extensions = {
+        result.extensions.update({
             constants.XAPI_RESULT_VIDEO_CC_ENABLED: True if 'show_transcript' in event['event_type'] or
             'closed_captions.shown' in event['event_type'] else False,
-        }
+        })
         return result
 
     def get_context(self, event):
