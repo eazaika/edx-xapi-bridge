@@ -32,12 +32,21 @@ VIDEO_STATE_CHANGE_VERB_MAP = {
     },
     'show_transcript': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'show transcript'})
+        'display': LanguageMap({'en': 'video transcript shown'})
     },
     'hide_transcript': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'hide transcript'})
+        'display': LanguageMap({'en': 'video transcript hidden'})
     },
+    'edx.video.closed_captions.shown': {
+        'id': constants.XAPI_VERB_INTERACTED,
+        'display': LanguageMap({'en': 'video captions shown'})
+    },
+    'edx.video.closed_captions.hidden': {
+        'id': constants.XAPI_VERB_INTERACTED,
+        'display': LanguageMap({'en': 'video captions hidden'})
+    },
+
 }
 
 
@@ -56,7 +65,7 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
             id='{}/courses/{}/jump_to/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id'], block_id),
             definition=ActivityDefinition(
                 type=constants.XAPI_ACTIVITY_VIDEO,
-                name=LanguageMap({'en': 'Video'}),
+                name=LanguageMap({'en': 'Video'}),  # TODO: get video name if possible, but not in tracking logs
                 description=LanguageMap({'en': 'A video in an Open edX course'}),
             ),
         )
@@ -70,9 +79,11 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
         )
 
     def get_result(self, event):
+        event_data = self.get_event_data(event)
+        cur_time = event_data.get('currentTime', event_data.get('current_time', 0))
         return Result(
             extensions={
-                constants.XAPI_RESULT_VIDEO_TIME: self.get_event_data(event)['currentTime'],
+                constants.XAPI_RESULT_VIDEO_TIME: cur_time,
             })
 
     def get_context(self, event):
@@ -132,7 +143,8 @@ class VideoTranscriptStatement(VideoStatement):
         # xAPI video profile doesn't differentiate between transcripts, subtitles, and closed captioning :(
         result = super(VideoTranscriptStatement, self).get_result(event)
         result.extensions = {
-            constants.XAPI_RESULT_VIDEO_CC_ENABLED: True if event['event_type'].contains('show_transcript') else False,
+            constants.XAPI_RESULT_VIDEO_CC_ENABLED: True if 'show_transcript' in event['event_type'] or
+            'closed_captions.shown' in event['event_type'] else False,
         }
         return result
 
@@ -140,7 +152,6 @@ class VideoTranscriptStatement(VideoStatement):
         # Show transcript and hide transcript only offer currentTime as context data.
         # TODO: get language from Video XBlock events at least, once available
         context = super(VideoTranscriptStatement, self).get_context(event)
-        context.context_activities = ContextActivities(super(VideoTranscriptStatement, self).get_object(event))
         context.extensions = Extensions({
             constants.XAPI_CONTEXT_VIDEO_CC_LANGUAGE: "en"  # we don't get this info from tracking log
         })
