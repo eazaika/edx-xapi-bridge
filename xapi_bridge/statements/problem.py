@@ -1,6 +1,8 @@
 """xAPI Statements and Activities for verbs on courses as a whole."""
 
 
+import json
+
 from tincan import Activity, ActivityDefinition, LanguageMap, Result, Verb
 
 import block
@@ -10,6 +12,11 @@ from xapi_bridge import constants, settings
 
 class ProblemStatement(block.BaseCoursewareBlockStatement):
     """ Statement base for problem events."""
+
+    # def _get_answer_as_string(answer):
+    #     if hasattr(answer, '__iter__'):
+    #         answer_string = ';'.join(answer)
+
 
     def get_object(self, event):
         """
@@ -43,6 +50,9 @@ class ProblemCheckStatement(ProblemStatement):
 
     def get_result(self, event):
         event_data = self.get_event_data(event)
+        # for now we are going to assume one submission
+        # TODO: when is that not true? is it ever not true? What problem types?
+        submission = event_data['submission'][event_data['submission'].keys()[0]]
         return Result(
             score={
                 'raw': event_data['grade'],
@@ -51,14 +61,25 @@ class ProblemCheckStatement(ProblemStatement):
                 'scaled': float(event_data['grade'] / event_data['max_grade'])
             },
             success=event_data['success'] == 'correct',
-            # completion=True  # TODO: to determine completion would need to know max allowed attempts
+            # TODO: to determine completion would need to know max allowed attempts?
+            # probably should return True here but uswe a result extension for num attempts/attempts left 
+            completion=True,
+            response=json.dumps(submission['answer'])
         )
 
-    #     pf = merge(statement, {
-    #         'verb': constants.XAPI_VERB_PASSED if evt['event']['success'] == 'correct' else constants.XAPI_VERB_FAILED,
-    #         'object': xapi_obj,
-    #         'result': xapi_result,
-    #         'context': xapi_context
-    #     })
 
-    #     return attempt, pf        
+class ProblemResetStatement(ProblemStatement):
+    """Statement for student resetting answer to a problem."""
+
+    def get_verb(self, event):
+        return Verb(
+            id=constants.XAPI_VERB_INITIALIZED,
+            display=LanguageMap({'en': 'reset'}),
+        )
+
+    def get_result(self, event):
+        event_data = self.get_event_data(event)
+        return Result(
+            completion=False,
+            response=json.dumps("[]")
+        )

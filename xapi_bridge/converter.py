@@ -16,7 +16,7 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     # problems
     'problem_check': problem.ProblemCheckStatement,
     # 'problem_graded': problem.ProblemGradedStatement, # not interesting I think
-    # 'problem_reset': problem.ProblemResetStatement,
+    'reset_problem': problem.ProblemResetStatement,
 
     # video
     'ready_video': video.VideoStatement,
