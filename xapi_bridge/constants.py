@@ -9,6 +9,7 @@ XAPI_VERB_LAUNCHED = "http://adlnet.gov/expapi/verbs/launched"
 XAPI_VERB_REGISTERED = "http://adlnet.gov/expapi/verbs/registered"
 XAPI_VERB_UNREGISTERED = "http://id.tincanapi.com/verb/unregistered"
 XAPI_VERB_COMPLETED = "http://adlnet.gov/expapi/verbs/completed"
+XAPI_VERB_EXPERIENCED = "http://adlnet.gov/expapi/verbs/experienced"
 
 XAPI_VERB_INITIALIZED = "http://adlnet.gov/expapi/verbs/initialized"
 XAPI_VERB_PLAYED = "https://w3id.org/xapi/video/verbs/played"
@@ -22,6 +23,7 @@ XAPI_ACTIVITY_INTERACTION = 'http://adlnet.gov/expapi/activities/interaction'
 XAPI_ACTIVITY_COURSE = 'http://adlnet.gov/expapi/activities/course'
 XAPI_ACTIVITY_MODULE = 'http://adlnet.gov/expapi/activities/module'
 XAPI_ACTIVITY_VIDEO = 'https://w3id.org/xapi/video/activity-type/video'
+XAPI_ACTIVITY_LINK = 'http://adlnet.gov/expapi/activities/link'
 XAPI_ACTIVITY_POSITION = 'http://id.tincanapi.com/extension/position'
 
 # xAPI context

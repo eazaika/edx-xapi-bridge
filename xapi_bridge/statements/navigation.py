@@ -1,7 +1,7 @@
 """xAPI Statements for navigation interactions."""
 
 
-import base, block
+import base, block, course
 from xapi_bridge import constants, settings
 
 from tincan import Activity, ActivityDefinition, ActivityList, Context, ContextActivities, Extensions, LanguageMap, Verb
@@ -51,6 +51,55 @@ class NavigationSequenceTabStatement(NavigationSequenceStatement):
         return Verb(
             id=constants.XAPI_VERB_INITIALIZED,
             display=LanguageMap({'en': 'initialized'}),
+        )
+
+
+class NavigationLinkStatement(base.LMSTrackingLogStatement):
+
+    def get_verb(self, event):
+        return Verb(
+            id=constants.XAPI_VERB_EXPERIENCED,
+            display=LanguageMap({'en': 'experienced'})
+        )
+
+    def get_object(self, event):
+        event_data = self.get_event_data(event)
+        return Activity(
+            id=event_data['target_url'],
+            definition=ActivityDefinition(
+                type=constants.XAPI_ACTIVITY_LINK,
+                name=LanguageMap({'en': 'Link name'})
+            )
+        )
+
+    def get_context_activities(self, event):
+        event_data = self.get_event_data(event)
+        parent_activities = [
+            Activity(
+                id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+                definition=course.CourseActivityDefinition(event)
+            ),
+        ]
+        other_activities = [
+            Activity(
+                id=event_data['current_url'],
+                definition=base.ReferringActivityDefinition(event)
+            ),
+        ]
+
+        return ContextActivities(
+            parent=ActivityList(parent_activities),
+            other=ActivityList(other_activities)
+        )
+
+    def get_context(self, event):
+        """Get Context for the statement.
+
+        For problems this can include the course and the block id.
+        """
+        return Context(
+            platform=settings.OPENEDX_PLATFORM_URI,
+            context_activities=self.get_context_activities(event)
         )
 
 

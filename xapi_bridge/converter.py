@@ -22,7 +22,7 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'edx.ui.lms.sequence.tab_selected': navigation.NavigationSequenceTabStatement,
     'seq_goto': navigation.NavigationSequenceTabStatement,
     'edx.ui.lms.outline.selected': navigation.NavigationSectionSelectionStatement, 
-    # 'edx.ui.lms.link_clicked': navigation.NavigationStatement, 
+    'edx.ui.lms.link_clicked': navigation.NavigationLinkStatement, 
 
     # 'edx.drag_and_drop_v2.item.dropped'
 
