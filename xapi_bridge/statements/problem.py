@@ -17,11 +17,15 @@ class ProblemStatement(block.BaseCoursewareBlockStatement):
         """
         Get object for the statement.
         """
+        try:
+            display_name = event['context']['module']['display_name']
+        except KeyError:
+            display_name = "Problem"
         return Activity(
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ACTIVITY_INTERACTION, # could be _QUESTION if not CAPA
-                name=LanguageMap({'en': 'Problem'}),  # display name missing in event
+                name=LanguageMap({'en': display_name}),
                 description=LanguageMap({'en': 'A problem in an Open edX course'}),
                 # TODO: interactionType, correctResponsesPattern, choices, if possible
             ),
@@ -40,8 +44,8 @@ class ProblemCheckStatement(ProblemStatement):
 
     def get_verb(self, event):
         return Verb(
-            id=constants.XAPI_VERB_ATTEMPTED,
-            display=LanguageMap({'en': 'attempted'}),
+            id=constants.XAPI_VERB_ANSWERED,
+            display=LanguageMap({'en': 'answered'}),
         )
 
     def get_result(self, event):
@@ -60,6 +64,33 @@ class ProblemCheckStatement(ProblemStatement):
             # TODO: to determine completion would need to know max allowed attempts?
             # probably should return True here but uswe a result extension for num attempts/attempts left 
             response=json.dumps(submission['answer'])
+        )
+
+
+class ProblemSubmittedStatement(ProblemStatement):
+    """Statement for student submitting an answer.
+
+    Recorded in some problem types instead of problem_check; e.g., drag and drop v2.
+    """
+
+    def get_verb(self, event):
+        return Verb(
+            id=constants.XAPI_VERB_ATTEMPTED,
+            display=LanguageMap({'en': 'attempted'}),
+        )
+
+    def get_result(self, event):
+        event_data = self.get_event_data(event)
+        earned = event_data['weighted_earned']
+        possible = event_data['weighted_possible']
+        return Result(
+            score={
+                'raw': earned,
+                'min': 0,
+                'max': possible,
+                'scaled': float(earned / possible)
+            },
+            success=True if earned >= possible else False,
         )
 
 

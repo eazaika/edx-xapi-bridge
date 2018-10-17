@@ -15,6 +15,7 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
 
     # problems
     'problem_check': problem.ProblemCheckStatement,
+    'edx.grades.problem.submitted': problem.ProblemSubmittedStatement,
     # 'problem_graded': problem.ProblemGradedStatement, # not interesting I think
     'reset_problem': problem.ProblemResetStatement,
 
