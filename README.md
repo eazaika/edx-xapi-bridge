@@ -15,6 +15,7 @@ $ git clone https://github.com/adlnet/edx-xapi-bridge.git
 $ cd edx-xapi-bridge
 $ virtualenv env
 $ source env/bin/activate
+(env)$ cd xapi_bridge
 (env)$ pip install -r requirements.txt
 (env)$ deactivate
 $ 
@@ -34,7 +35,7 @@ Rename the file *xapi-bridge/settings-dist.py* to *settings.py* and change the p
 	
 	Reasonable default values are `10` and `60`, respectively.
 
-* `LRS_ENDPOINT`, `LRS_USERNAME`, `LRS_PASSWORD`, and `LRS_BASICAIUTH_HASH`
+* `LRS_ENDPOINT`, `LRS_USERNAME`, `LRS_PASSWORD`, and `LRS_BASICAUTH_HASH`
 
 	The URL and login credentials of the LRS to which you want to publish edX events. The endpoint URL should end in a slash, e.g. `"http://mydoma.in/xAPI/"`.  For authentication to the LRS, you can use either `LRS_USERNAME` and `LRS_PASSWORD` in combination, or pass them combined as `LRS_BASICAUTH_HASH`.
 
@@ -51,7 +52,7 @@ Rename the file *xapi-bridge/settings-dist.py* to *settings.py* and change the p
     * Click "Add client"
     * Create a new OAuth2 client specifying
       *  name: This can be anything but "edx-xapi-bridge" is a good default.
-      *  user: `xapi_bridge`.  If you used [the Ansible role](https://github.com/appsembler/configuration/blob/appsembler/ficus/master/playbooks/roles/xapi_bridge/) for setting up xapi_bridge, this user already exists in your LMS.
+      *  user: `xapi_bridge`.  If you used [the Ansible role](https://github.com/appsembler/configuration/blob/appsembler/ficus/master/playbooks/roles/xapi_bridge/) for setting up xapi_bridge, this user already exists in your LMS.  Your user needs Staff permissions.
       *  For url and redirect_url you can just specify https://github.com/appsembler/edx-xapi-bridge.  These aren't used since the xAPI bridge doesn't expose any URLs, but serve to indicate which application the client is for
       *  For client type, specify Confidential (Web application)
       *  Logout URL can be left blank
