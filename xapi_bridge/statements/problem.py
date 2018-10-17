@@ -13,21 +13,17 @@ from xapi_bridge import constants, settings
 class ProblemStatement(block.BaseCoursewareBlockStatement):
     """ Statement base for problem events."""
 
-    # def _get_answer_as_string(answer):
-    #     if hasattr(answer, '__iter__'):
-    #         answer_string = ';'.join(answer)
-
-
     def get_object(self, event):
         """
         Get object for the statement.
         """
         return Activity(
-            id='{}/courses/{}/jump_to/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id'], event['event']['problem_id']),
+            id=self._get_activity_id(event),
             definition=ActivityDefinition(
-                type=constants.XAPI_ACTIVITY_QUESTION,
-                name=LanguageMap({'en': 'Problem'}),
+                type=constants.XAPI_ACTIVITY_INTERACTION, # could be _QUESTION if not CAPA
+                name=LanguageMap({'en': 'Problem'}),  # display name missing in event
                 description=LanguageMap({'en': 'A problem in an Open edX course'}),
+                # TODO: interactionType, correctResponsesPattern, choices, if possible
             ),
         )
 
@@ -63,7 +59,6 @@ class ProblemCheckStatement(ProblemStatement):
             success=event_data['success'] == 'correct',
             # TODO: to determine completion would need to know max allowed attempts?
             # probably should return True here but uswe a result extension for num attempts/attempts left 
-            completion=True,
             response=json.dumps(submission['answer'])
         )
 

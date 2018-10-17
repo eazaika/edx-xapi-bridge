@@ -33,6 +33,10 @@ class LMSTrackingLogStatement(Statement):
     def _get_edx_user_info(self, username):
         return self.user_api_client.get_edx_user_info(username)
 
+    def _get_enrollment_id(self, event):
+        api_url = constants.ENROLLMENT_API_URL_FORMAT.format(username=event['username'], course_id=event['context']['course_id'])
+        return "{}{}".format(settings.OPENEDX_PLATFORM_URI, api_url)
+
     def get_event_data(self, event):
         if event['event_source'] == 'browser':
             return json.loads(event.get('event', "{}"))
@@ -59,7 +63,10 @@ class LMSTrackingLogStatement(Statement):
 
     def get_context(self, event):
         """Get Context for the statement."""
-        return Context(platform=settings.OPENEDX_PLATFORM_URI)
+        return Context(
+            platform=settings.OPENEDX_PLATFORM_URI,
+            # registration=self._get_enrollment_id(event) TODO: not sure why this format doesn't work
+        )
 
     def get_timestamp(self, event):
         """Get the Timestamp for the statement."""

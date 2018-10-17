@@ -1,7 +1,7 @@
 """Convert tracking log entries to xAPI statements."""
 
 from xapi_bridge import exceptions, settings
-from xapi_bridge.statements import base, course, problem, video
+from xapi_bridge.statements import base, course, navigation, problem, video
 
 
 TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
@@ -17,6 +17,14 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'problem_check': problem.ProblemCheckStatement,
     # 'problem_graded': problem.ProblemGradedStatement, # not interesting I think
     'reset_problem': problem.ProblemResetStatement,
+
+    # navigation
+    'edx.ui.lms.sequence.tab_selected': navigation.NavigationSequenceTabStatement,
+    'seq_goto': navigation.NavigationSequenceTabStatement,
+    'edx.ui.lms.outline.selected': navigation.NavigationSectionSelectionStatement, 
+    # 'edx.ui.lms.link_clicked': navigation.NavigationStatement, 
+
+    # 'edx.drag_and_drop_v2.item.dropped'
 
     # video
     'ready_video': video.VideoStatement,

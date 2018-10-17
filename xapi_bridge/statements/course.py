@@ -10,10 +10,12 @@ from xapi_bridge import constants, settings
 
 class CourseActivityDefinition(ActivityDefinition):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, event, *args, **kwargs):
+        # TODO get course name, probably from enrollment API
+        # in course_details['course_name']
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_COURSE,
-            'name': LanguageMap({'en': 'Course'}),  # TODO get course name
+            'name': LanguageMap({'en': 'Course'}),
             'description': LanguageMap({'en': 'A course delivered through Open edX'})
         })
         super(CourseActivityDefinition, self).__init__(*args, **kwargs)
@@ -28,8 +30,8 @@ class CourseStatement(base.LMSTrackingLogStatement):
         Get object for the statement.
         """
         return Activity(
-            id='{}/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
-            definition=CourseActivityDefinition()
+            id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+            definition=CourseActivityDefinition(event)
         )
 
 

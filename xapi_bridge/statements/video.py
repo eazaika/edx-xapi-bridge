@@ -14,6 +14,10 @@ VIDEO_STATE_CHANGE_VERB_MAP = {
         'id': constants.XAPI_VERB_INITIALIZED,
         'display': LanguageMap({'en': 'loaded'})
     },
+    'ready_video': {
+        'id': constants.XAPI_VERB_INITIALIZED,
+        'display': LanguageMap({'en': 'loaded'})
+    },
     'play_video': {
         'id': constants.XAPI_VERB_PLAYED,
         'display': LanguageMap({'en': 'played'})
@@ -53,16 +57,26 @@ VIDEO_STATE_CHANGE_VERB_MAP = {
 class VideoStatement(block.BaseCoursewareBlockStatement):
     """ Statement base for video interaction events."""
 
+    def _get_activity_id(self, event):
+        if event['event_source'] == 'server':
+            return super(VideoStatement, self)._get_activity_id(event)
+
+        # TODO: Yuck.  Try to use course blocks API or other way to get a proper id
+        # browser event source event won't have the module id
+        # event only passes a bare id like '1f7c045b23084e2b8f9f8a2a303c0940'
+        format_str = constants.BLOCK_OBJECT_ID_FORMAT
+        platform_str = settings.OPENEDX_PLATFORM_URI
+        bare_course_id = event['context']['course_id'].replace("course-v1:", "")
+        block_type = "video+xblock" if 'xblock-video' in event['event_type'] else "video+block"
+        block_id = 'block-v1:{}+type@{}@{}'.format(bare_course_id, block_type, self.get_event_data(event)['id'])
+        return format_str.format(platform=platform_str, block_usage_key=block_id)
+
     def get_object(self, event):
         """
         Get object for the statement.
         """
-        # TODO: Yuck.  Try to use course blocks API or other way to get a proper id
-        # event only passes a bare id like '1f7c045b23084e2b8f9f8a2a303c0940'
-        bare_course_id = event['context']['course_id'].replace("course-v1:", "")
-        block_id = 'block-v1:{}+type@video+block@{}'.format(bare_course_id, self.get_event_data(event)['id'])
         return Activity(
-            id='{}/courses/{}/jump_to/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id'], block_id),
+            id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ACTIVITY_VIDEO,
                 name=LanguageMap({'en': 'Video'}),  # TODO: get video name if possible, but not in tracking logs
@@ -72,7 +86,10 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
 
     def get_verb(self, event):
         event_type = event['event_type'].replace("xblock-video.", "")
-        verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
+        try:
+            verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
+        except KeyError:
+            return None
         return Verb(
             id=verb_props['id'],
             display=verb_props['display'],
@@ -109,9 +126,12 @@ class VideoPauseStatement(VideoStatement):
 class VideoSeekStatement(VideoStatement):
     def get_result(self, event):
         result = super(VideoSeekStatement, self).get_result(event)
+        event_data = self.get_event_data(event)
+        prev_time = event_data.get('old_time', event_data['previous_time'])
+        new_time = event_data.get('new_time')
         result.extensions.update({
-            constants.XAPI_RESULT_VIDEO_TIME_FROM: self.get_event_data(event)['old_time'],
-            constants.XAPI_RESULT_VIDEO_TIME_TO: self.get_event_data(event)['new_time']
+            constants.XAPI_RESULT_VIDEO_TIME_FROM: prev_time,
+            constants.XAPI_RESULT_VIDEO_TIME_TO: new_time
         })
         return result
 
@@ -119,9 +139,11 @@ class VideoSeekStatement(VideoStatement):
 class VideoCompleteStatement(VideoStatement):
     def get_context(self, event):
         context = super(VideoCompleteStatement, self).get_context(event)
+        event_data = self.get_event_data(event)
+        cur_time = event_data.get('currentTime', event_data.get('current_time', 0))
         context.extensions = Extensions({
             #  length will be same as current time once stopped
-            constants.XAPI_CONTEXT_VIDEO_LENGTH: self.get_event_data(event)['currentTime']
+            constants.XAPI_CONTEXT_VIDEO_LENGTH: cur_time
         })
         return context
 
