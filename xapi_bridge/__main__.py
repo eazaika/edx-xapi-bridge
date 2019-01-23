@@ -9,9 +9,10 @@ import threading
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
 from tincan import statement_list
 
-from xapi_bridge import converter
-from xapi_bridge import settings
 from xapi_bridge import client
+from xapi_bridge import converter
+from xapi_bridge import exceptions
+from xapi_bridge import settings
 
 
 class QueueManager:
@@ -110,7 +111,17 @@ class TailHandler(ProcessEvent):
                     print 'Could not parse JSON for', e
                     continue
 
-                xapi = converter.to_xapi(evt_obj)
+                xapi = None
+                try:
+                    xapi = converter.to_xapi(evt_obj)
+                except (exceptions.XAPIBridgeStatementError, ) as e:
+                    e.err_continue_msg()
+
+                # except (errors we want to capture exception info in Sentry):
+                #     e.err_continue_exc()
+                # except (Fatal exceptions, ) as e:
+                    # e.err_fail()
+
                 if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
