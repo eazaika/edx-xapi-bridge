@@ -1,9 +1,10 @@
 """Main process with queue management and remote LRS communication."""
 
 
-import sys
-import os
 import json
+import logging
+import os
+import sys
 import threading
 
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
@@ -13,6 +14,9 @@ from xapi_bridge import client
 from xapi_bridge import converter
 from xapi_bridge import exceptions
 from xapi_bridge import settings
+
+
+logger = logging.getLogger('edX-xapi-bridge main')
 
 
 class QueueManager:
@@ -146,6 +150,14 @@ def watch(watch_file):
 
 
 if __name__ == '__main__':
+
+    # try to connect to the LRS immediately
+    lrs =  client.lrs
+    resp = lrs.about()
+    if resp.success:
+        logger.info('Successfully connected to remote LRS at {}'.format(settings.LRS_ENDPOINT))
+    else:
+        raise exceptions.XAPIBridgeLRSConnectionError(msg='Error connecting to remote LRS at {}'.format(settings.LRS_ENDPOINT))
 
     log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
     print 'Watching file', log_path

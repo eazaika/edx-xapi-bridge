@@ -19,4 +19,7 @@ else:
     kw['password'] = settings.LRS_PASSWORD
 
 # RemoteLRS will use auth if passed otherwise BasicAuth with un/pw
-lrs = RemoteLRS(**kw)
+try:
+    lrs = RemoteLRS(**kw)
+except Exception as e:
+    import pdb; pdb.set_trace()
