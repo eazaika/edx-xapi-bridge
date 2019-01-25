@@ -7,8 +7,7 @@ import memcache
 from requests.exceptions import ConnectionError, Timeout  # pylint: disable=unused-import
 from slumber.exceptions import SlumberBaseException
 
-from xapi_bridge import constants
-from xapi_bridge import settings
+from xapi_bridge import constants, exceptions, settings
 
 
 logger = logging.getLogger(__name__)

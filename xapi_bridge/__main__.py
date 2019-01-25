@@ -114,7 +114,7 @@ class TailHandler(ProcessEvent):
                 xapi = None
                 try:
                     xapi = converter.to_xapi(evt_obj)
-                except (exceptions.XAPIBridgeStatementError, ) as e:
+                except (exceptions.XAPIBridgeStatementConversionError, ) as e:
                     e.err_continue_msg()
 
                 # except (errors we want to capture exception info in Sentry):

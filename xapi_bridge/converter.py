@@ -68,10 +68,9 @@ def to_xapi(evt):
         return
 
     statement = statement_class(evt)
-    # raise exceptions.XAPIBridgeStatementError("Some bogus test reason", statement)  # debug
 
     if hasattr(statement, 'version'):  # make sure it's a proper statement
         return (statement, )
     else:
-        err_reason = "Statement missing version."
-        raise exceptions.XAPIBridgeStatementError(err_reason, statement)
+        msg = "Statement missing version."
+        raise exceptions.XAPIBridgeStatementConversionError(event=evt, msg=msg)

@@ -31,28 +31,23 @@ class XAPIBridgeSentryMixin(object):
                 scope.set_extra(key, value)
         return scope
 
-    def log_exception(self):
+    def log_error(self, log_type):
         """Send exception information to Sentry if integrated.
         Typically called if we need to know about the exception but we don't want to fail the application.
         """
         if HAS_SENTRY_INTEGRATION:
             with configure_scope() as scope:
-                statement_context = {'xAPI Statement' : self.statement.to_json()}
-                scope = self.update_sentry_scope(scope, 'warning', **statement_context)
-                capture_exception(self)
-        logger.warn('xAPI Bridge caught exception type {}. {}'.format(self.__class__, self.MSG_SENT_TO_SENTRY))
-
-    def log_message(self):
-        """Send message to Sentry if integrated.
-        Typically called if we need to understand something about behavior but we don't want to fail the application.
-        """
-        if HAS_SENTRY_INTEGRATION:
-            msg = self.msg  # TODO: maybe some other wrapping information in message
-            with configure_scope() as scope:
-                statement_context = {'xAPI Statement' : self.statement.to_json()}
-                scope = self.update_sentry_scope(scope, 'warning', **statement_context)
-                capture_message(msg)
-        logger.warn('xAPI Bridge caught exception type {}. {}'.format(self.__class__, self.MSG_SENT_TO_SENTRY))
+                extra_context = dict()
+                if hasattr(self, 'statement'):
+                    extra_context.update({'xAPI Statement': self.statement.to_json()})
+                if hasattr(self, 'event'):
+                    extra_context.update({'Tracking Log Event': self.event.to_json()})
+                scope = self.update_sentry_scope(scope, 'warning', **extra_context)
+                if log_type == 'exception':
+                    capture_exception(self)
+                else:
+                    capture_message(self.msg)
+        logger.warn('xAPI Bridge caught exception type {}:{}. {}'.format(str(self.__class__), self.msg, self.MSG_SENT_TO_SENTRY))
 
 
 class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
@@ -60,9 +55,7 @@ class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
 
     def __init__(self, msg=None, *args):
         if msg is None:
-            self.msg = 'Some XAPIBridgeException occurred without a specific message'
-        if HAS_SENTRY_INTEGRATION:
-            self.set_sentry_scope(level, )
+            self.msg = 'An XAPIBridgeException occurred without a specific message'
         super(XAPIBridgeException, self).__init__(msg, *args)
 
     def err_continue_exc(self):
@@ -71,7 +64,7 @@ class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
         if settings.EXCEPTIONS_NO_CONTINUE:  # debug setting
             self.err_fail()
         else:
-            self.log_exception()
+            self.log_error('exception')
 
     def err_continue_msg(self):
         """Handle non-fatal errors, tracking just a message in Sentry.io."""
@@ -79,7 +72,7 @@ class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
         if settings.EXCEPTIONS_NO_CONTINUE:  # debug setting
             self.err_fail()
         else:
-            self.log_message()
+            self.log_error('message')
 
     def err_fail(self):
         raise
@@ -93,10 +86,10 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
     """Exception class for problems connecting to an LRS."""
 
 
-class XAPIBridgeStatementError(XAPIBridgeException):
+class XAPIBridgeStatementConversionError(XAPIBridgeException):
     """Catch-all exception for bad Statements."""
 
-    def __init__(self, err_reason="", statement=None, msg=None, *args):
-        self.statement = statement
-        self.msg = "Caught error:{}".format(err_reason)
+    def __init__(self, event=None, msg=None, *args):
+        self.event = event
+        self.msg = msg
         super(XAPIBridgeException, self).__init__(self.msg, *args)
