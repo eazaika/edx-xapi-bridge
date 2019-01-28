@@ -5,11 +5,16 @@ PUBLISH_MAX_WAIT_TIME = 60
 # the number of statements to publish per batch
 PUBLISH_MAX_PAYLOAD = 10
 
+# maximum publish retries on LRS connection error
+PUBLISH_MAX_RETRIES = 1
+
 # lrs credentials
 LRS_ENDPOINT = 'https://lrs.adlnet.gov/xAPI/'
 LRS_USERNAME = 'fakeuser'
 LRS_PASSWORD = 'fakepassword'
 LRS_BASICAUTH_HASH = None
+
+LRS_BACKEND_TYPE = 'learninglocker'
 
 OPENEDX_PLATFORM_URI = 'https://open.edx.org'
 OPENEDX_USER_API_URI = OPENEDX_PLATFORM_URI + "/api/user/v1/"

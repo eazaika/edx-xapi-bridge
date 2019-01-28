@@ -32,8 +32,8 @@ class LMSTrackingLogStatement(Statement):
             super(LMSTrackingLogStatement, self).__init__(*args, **kwargs)
         # wrap base exception types used in tincan package
         except (ValueError, TypeError, AttributeError) as e:
-            msg = "xAPI Bridge could not generate Statement from class {}. {}".format(str(self.__class__), e.msg)
-            raise exceptions.XAPIBridgeStatementConversionError(event=evt, msg=e.msg)
+            message = "xAPI Bridge could not generate Statement from class {}. {}".format(str(self.__class__), e.message)
+            raise exceptions.XAPIBridgeStatementConversionError(event=event, message=message)
 
     def _get_edx_user_info(self, username):
         return self.user_api_client.get_edx_user_info(username)

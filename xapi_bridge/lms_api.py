@@ -2,10 +2,12 @@
 
 import logging
 
-from edx_rest_api_client.client import EdxRestApiClient
 import memcache
 from requests.exceptions import ConnectionError, Timeout  # pylint: disable=unused-import
 from slumber.exceptions import SlumberBaseException
+
+from edx_rest_api_client.client import EdxRestApiClient
+from edx_rest_api_client.exceptions import HttpClientError
 
 from xapi_bridge import constants, exceptions, settings
 
@@ -52,18 +54,25 @@ class UserApiClient(object):
         """
 
         def _get_user_info_from_api(username):
+
             try:
                 resp = self.client.accounts(username).get()
-                return {'email': resp['email'], 'fullname': resp['name']}
-            except (SlumberBaseException, ConnectionError, Timeout) as exc:
-                # should we interrupt the publishing of the statement here?
-                logger.exception(
-                    'Failed to retrieve user details for username {} due to: {}'.format(username, str(exc))
-                )
+                if resp:
+                    return {'email': resp['email'], 'fullname': resp['name']}
+                else:
+                    # TODO: look at other reasons for no resp.success
+                    message = 'Failed to retrieve user details for username {}. User not found in LMS'.format(username)                
+                    raise exceptions.XAPIBridgeUserNotFoundError(message)
+            except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
+                message = 'Failed to retrieve user details for username {} due to: {}'.format(username, str(e))                
+                e = exceptions.XAPIBridgeConnectionError(message)
+                e.err_continue_exc()
+                raise exceptions.XAPIBridgeUserNotFoundError(message)                   
 
         if username == '':
-            # we shouldn't even get to this point I think
-            return {'email': '', 'fullname': ''}
+            raise exceptions.XAPIBridgeUserNotFoundError()
+            # return {'email': '', 'fullname': ''}
+
         if hasattr(self, 'cache'):
             cached_user_info = self.cache.get(self.CACHE_ACCOUNTS_PREFIX + username)
             if not cached_user_info:

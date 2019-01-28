@@ -72,5 +72,5 @@ def to_xapi(evt):
     if hasattr(statement, 'version'):  # make sure it's a proper statement
         return (statement, )
     else:
-        msg = "Statement missing version."
-        raise exceptions.XAPIBridgeStatementConversionError(event=evt, msg=msg)
+        message = "Statement missing version."
+        raise exceptions.XAPIBridgeStatementConversionError(event=evt, message=message)
