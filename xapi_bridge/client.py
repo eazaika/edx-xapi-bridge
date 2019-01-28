@@ -2,6 +2,7 @@
 
 import json
 import importlib
+import socket
 
 from tincan.remote_lrs import RemoteLRS
 
@@ -49,7 +50,10 @@ class XAPIBridgeLRSPublisher(object):
         params:
         statements tincan.statement_list.StatementList
         """
-        lrs_resp = lrs.save_statements(statements)
+        try:
+            lrs_resp = lrs.save_statements(statements)
+        except (socket.gaierror, ) as e:  # can't connect at all, no response
+            raise exceptions.XAPIBridgeLRSConnectionError(queue=statements)
 
         if lrs_resp.success:
             for st in lrs_resp.content:
@@ -57,8 +61,6 @@ class XAPIBridgeLRSPublisher(object):
             return lrs_resp
         else:
             resp_dict = json.loads(lrs_resp.data)
-
-            # can't connect at all
 
             # error message from LRS
             if self.lrs_backend.response_has_errors(lrs_resp.data):

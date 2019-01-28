@@ -73,6 +73,7 @@ class QueueManager:
                         self.publish_retries += 1
                     else:
                         e.err_fail()
+                        break
                 except exceptions.XAPIBridgeStatementStorageError as e:
                     # remove the failed Statement from StatementList
                     # and retry, logging non-failing exception

@@ -2,6 +2,7 @@
 
 import logging
 import json
+import os
 
 from xapi_bridge import settings
 
@@ -46,6 +47,8 @@ class XAPIBridgeSentryMixin(object):
                 if hasattr(self, 'event'):
                     user = self.event['username']
                     extra_context.update({'Tracking Log Event': json.dumps(self.event)})
+                if hasattr(self, 'queue'):
+                    extra_context.update({'Queued unsent Statements': '\n'.join(st.to_json() for st in self.queue)})
                 scope = self.update_sentry_scope(scope, 'warning', **extra_context)
                 if log_type == 'exception':
                     capture_exception(self)
@@ -79,23 +82,28 @@ class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
             self.log_error('message')
 
     def err_fail(self):
-        raise self
+        self.log_error('exception')
+        SystemExit("Terminal exception: {}".format(self.message))
+        os._exit(os.EX_UNAVAILABLE)  # TODO: for some reason SystemExit isn't killing the program
 
 
 class XAPIBridgeConnectionError(XAPIBridgeException):
     """Base exception class for errors connecting to external services in xAPI bridge application."""
 
     def __init__(self, message=None, *args):
-        self.message="External connection error in xapi-bridge application. {}".format(message)
+        self.message = "External connection error in xapi-bridge application. {}".format(message)
         super(XAPIBridgeConnectionError, self).__init__(self.message, *args)
 
 
 class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
     """Exception class for problems connecting to an LRS."""
 
-    def __init__(self, response, message=None, *args):
+    def __init__(self, response=None, message=None, queue=None, *args):
+        self.queue = queue
         if not message:
-            self.message="Error connecting to remote LRS at {}.  Requested resource was '{}'".format(settings.LRS_ENDPOINT, response.request.resource)
+            self.message="Error connecting to remote LRS at {}.".format(settings.LRS_ENDPOINT)
+            if response:
+                self.message+=" Requested resource was '{}'".format(response.request.resource)
         super(XAPIBridgeLRSConnectionError, self).__init__(self.message, *args)
 
 
