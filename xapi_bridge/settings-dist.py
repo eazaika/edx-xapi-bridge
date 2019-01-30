@@ -16,6 +16,9 @@ OPENEDX_USER_API_URI = OPENEDX_PLATFORM_URI + "/api/user/v1/"
 OPENEDX_OAUTH2_CLIENT_ID = "foo"
 OPENEDX_OAUTH2_CLIENT_SECRET = "notasecret"
 
+LMS_API_USE_MEMCACHED = False
+MEMCACHED_ADDRESS = "127.0.0.1:11211"
+
 # events configuration
 # list of ignored event ids
 IGNORED_EVENT_TYPES = []

@@ -3,6 +3,7 @@
 import logging
 
 from edx_rest_api_client.client import EdxRestApiClient
+import memcache
 from requests.exceptions import ConnectionError, Timeout  # pylint: disable=unused-import
 from slumber.exceptions import SlumberBaseException
 
@@ -21,6 +22,7 @@ class UserApiClient(object):
 
     API_BASE_URL = settings.OPENEDX_USER_API_URI
     APPEND_SLASH = False
+    CACHE_ACCOUNTS_PREFIX = "userapi_accounts__"
 
     def __init__(self):
         """
@@ -33,6 +35,9 @@ class UserApiClient(object):
             client_id=settings.OPENEDX_OAUTH2_CLIENT_ID,
             client_secret=settings.OPENEDX_OAUTH2_CLIENT_SECRET,
         )
+        self.cache = False
+        if settings.LMS_API_USE_MEMCACHED:
+            self.cache = memcache.Client([settings.MEMCACHED_ADDRESS], debug=0)
         self.client = EdxRestApiClient(
             self.API_BASE_URL, append_slash=self.APPEND_SLASH,
             username="xapi_bridge", oauth_access_token=token[0]
@@ -47,19 +52,29 @@ class UserApiClient(object):
             dict with keys 'email', 'fullname'
         """
 
-        # TODO: store/retrieve already retrieved in memcached, with timeout
+        def _get_user_info_from_api(username):
+            try:
+                resp = self.client.accounts(username).get()
+                return {'email': resp['email'], 'fullname': resp['name']}
+            except (SlumberBaseException, ConnectionError, Timeout) as exc:
+                # should we interrupt the publishing of the statement here?
+                logger.exception(
+                    'Failed to retrieve user details for username {} due to: {}'.format(username, str(exc))
+                )
 
         if username == '':
             # we shouldn't even get to this point I think
             return {'email': '', 'fullname': ''}
-        try:
-            resp = self.client.accounts(username).get()
-            return {'email': resp['email'], 'fullname': resp['name']}
-        except (SlumberBaseException, ConnectionError, Timeout) as exc:
-            logger.exception(
-                'Failed to retrieve user details for username {} due to: {}'.format(username, str(exc))
-            )
-            # should we interrupt the publishing of the statement here?
+        if hasattr(self, 'cache'):
+            cached_user_info = self.cache.get(self.CACHE_ACCOUNTS_PREFIX + username)
+            if not cached_user_info:
+                user_info = _get_user_info_from_api(username)
+                self.cache.set(self.CACHE_ACCOUNTS_PREFIX + username, user_info, time=300)
+                return user_info
+            else:
+                return cached_user_info
+        else:
+            return _get_user_info_from_api(username)
 
 
 user_api_client = UserApiClient()
