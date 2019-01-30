@@ -13,7 +13,6 @@ from tincan import statement_list
 from xapi_bridge import client
 from xapi_bridge import converter
 from xapi_bridge import exceptions
-from xapi_bridge import lrs_utils
 from xapi_bridge import settings
 
 
