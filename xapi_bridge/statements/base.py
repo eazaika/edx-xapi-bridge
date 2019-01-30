@@ -8,7 +8,7 @@ import json
 
 from tincan import Agent, Context, Statement, ActivityDefinition, LanguageMap
 
-from xapi_bridge import constants, lms_api, settings
+from xapi_bridge import constants, exceptions, lms_api, settings
 
 
 class LMSTrackingLogStatement(Statement):
@@ -20,15 +20,20 @@ class LMSTrackingLogStatement(Statement):
         """
         Initialize an xAPI Statement from a tracking log event.
         """
-        kwargs.update(
-            actor=self.get_actor(event),
-            verb=self.get_verb(event),
-            object=self.get_object(event),
-            result=self.get_result(event),
-            context=self.get_context(event),
-            timestamp=self.get_timestamp(event)
-        )
-        super(LMSTrackingLogStatement, self).__init__(*args, **kwargs)
+        try:
+            kwargs.update(
+                actor=self.get_actor(event),
+                verb=self.get_verb(event),
+                object=self.get_object(event),
+                result=self.get_result(event),
+                context=self.get_context(event),
+                timestamp=self.get_timestamp(event)
+            )
+            super(LMSTrackingLogStatement, self).__init__(*args, **kwargs)
+        # wrap base exception types used in tincan package
+        except (ValueError, TypeError, AttributeError) as e:
+            message = "xAPI Bridge could not generate Statement from class {}. {}".format(str(self.__class__), e.message)
+            raise exceptions.XAPIBridgeStatementConversionError(event=event, message=message)
 
     def _get_edx_user_info(self, username):
         return self.user_api_client.get_edx_user_info(username)
@@ -48,7 +53,7 @@ class LMSTrackingLogStatement(Statement):
         edx_user_info = self._get_edx_user_info(event['username'])
 
         # this can happen in case a user was just deleted, or
-        # in cases a user is automatically logged out while 
+        # in cases a user is automatically logged out while
         # they are interacting with courseware (e.g., a video is playing),
         # due to an LMS restart or other circumstance, in which
         # case an event with no username can be sent to the tracking

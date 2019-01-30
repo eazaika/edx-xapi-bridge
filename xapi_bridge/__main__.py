@@ -1,17 +1,23 @@
 """Main process with queue management and remote LRS communication."""
 
 
-import sys
-import os
 import json
+import logging
+import os
+import sys
 import threading
 
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
 from tincan import statement_list
 
-from xapi_bridge import converter
-from xapi_bridge import settings
 from xapi_bridge import client
+from xapi_bridge import converter
+from xapi_bridge import exceptions
+from xapi_bridge import lrs_utils
+from xapi_bridge import settings
+
+
+logger = logging.getLogger('edX-xapi-bridge main')
 
 
 class QueueManager:
@@ -21,6 +27,7 @@ class QueueManager:
         self.cache = []
         self.cache_lock = threading.Lock()
         self.publish_timer = None
+        self.publish_retries = 0
 
     def __del__(self):
         self.destroy()
@@ -51,24 +58,33 @@ class QueueManager:
 
             # build StatementList
 
+            lrs_success = False
             statements = statement_list.StatementList(self.cache)
-            lrs_resp = client.lrs.save_statements(statements)
 
-            if lrs_resp.success:
-                for st in lrs_resp.content:
-                    print "Succeeded sending {}".format(st.to_json())
+            while lrs_success is False and len(statements) > 0:
+                try:
+                    lrs_resp = client.lrs_publisher.publish_statements(statements)
+                    lrs_success = True
+                    self.publish_retries = 0  # reset retries
+                except exceptions.XAPIBridgeLRSConnectionError as e:
+                    # if it was an auth problem, fail
+                    # if it was a connection problem, retry
+                    if self.publish_retries <= settings.PUBLISH_MAX_RETRIES:
+                        self.publish_retries += 1
+                    else:
+                        e.err_fail()
+                        break
+                except exceptions.XAPIBridgeStatementStorageError as e:
+                    # remove the failed Statement from StatementList
+                    # and retry, logging non-failing exception
+                    e.message = "Removing rejected Statement and retrying publishing StatementList. Rejected Statement was {}. LRS message was {}".format(e.statement.to_json(), e.message)
+                    e.err_continue_msg()
+                    statements.remove(e.statement)
 
-                # clear cache and cancel any pending publish timeouts
-                self.cache = []
-                if self.publish_timer is not None:
-                    self.publish_timer.cancel()
-            else:
-                # TODO: do something smarter here
-                # what kind of retrying does RemoteLRS.save_statements do?
-                # what if some statements are successful and some not?
-                # keep the cache
-                print "Failed sending {} to remote LRS".format(lrs_resp.request.content)
-                raise Exception
+            # clear the cache and cancel publish timer whether successful or not
+            self.cache = []
+            if self.publish_timer is not None:
+                self.publish_timer.cancel()
 
 
 class TailHandler(ProcessEvent):
@@ -110,7 +126,17 @@ class TailHandler(ProcessEvent):
                     print 'Could not parse JSON for', e
                     continue
 
-                xapi = converter.to_xapi(evt_obj)
+                xapi = None
+                try:
+                    xapi = converter.to_xapi(evt_obj)
+                except (exceptions.XAPIBridgeStatementConversionError, ) as e:
+                    e.err_continue_msg()
+
+                # except (errors we want to capture exception info in Sentry):
+                #     e.err_continue_exc()
+                # except (Fatal exceptions, ) as e:
+                    # e.err_fail()
+
                 if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
@@ -135,6 +161,15 @@ def watch(watch_file):
 
 
 if __name__ == '__main__':
+
+    # try to connect to the LRS immediately
+    lrs = client.lrs
+    resp = lrs.about()
+    if resp.success:
+        logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.content))
+    else:
+        e = exceptions.XAPIBridgeLRSConnectionError(resp)
+        e.err_fail()
 
     log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
     print 'Watching file', log_path

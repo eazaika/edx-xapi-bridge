@@ -60,18 +60,17 @@ def to_xapi(evt):
     event_type = evt['event_type'].replace("xblock-video.", "")
 
     if event_type in settings.IGNORED_EVENT_TYPES:
-        return
+        return  # deliberately ignored event
 
     try:
         statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[event_type]
-    except KeyError:
+    except KeyError:  # untracked event
         return
 
-    try:
-        statement = statement_class(evt)
-        if hasattr(statement, 'version'):  # make sure it's a proper statement
-            return (statement, )
-        else:
-            raise exceptions.XAPIMalformedStatementError
-    except exceptions.XAPIMalformedStatementError:
-        print "Skipping bad Statement {}".format(statement.to_json())
+    statement = statement_class(evt)
+
+    if hasattr(statement, 'version'):  # make sure it's a proper statement
+        return (statement, )
+    else:
+        message = "Statement missing version."
+        raise exceptions.XAPIBridgeStatementConversionError(event=evt, message=message)

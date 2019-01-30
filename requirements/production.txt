@@ -1,0 +1,2 @@
+# additional packages for production deployments
+sentry-sdk==0.6.9
