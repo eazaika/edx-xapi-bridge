@@ -15,6 +15,9 @@ from xapi_bridge import converter
 from xapi_bridge import exceptions
 from xapi_bridge import settings
 
+if settings.HTTP_PUBLISH_STATUS is True:
+    from xapi_bridge import server
+
 
 logger = logging.getLogger('edX-xapi-bridge main')
 
@@ -160,6 +163,11 @@ def watch(watch_file):
 
 
 if __name__ == '__main__':
+
+    if settings.HTTP_PUBLISH_STATUS is True:
+        # open a TCP socket and HTTP server for simple OK status response
+        # for service uptime monitoring
+        server.httpd.serve_forever()
 
     # try to connect to the LRS immediately
     lrs = client.lrs

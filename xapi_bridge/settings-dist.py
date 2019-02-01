@@ -36,3 +36,8 @@ SENTRY_DSN = False
 if SENTRY_DSN:
     import sentry_sdk
     sentry_sdk.init(SENTRY_DSN)
+
+# open a TCP socket and HTTP server for simple OK status response
+HTTP_PUBLISH_STATUS = False
+HTTP_PUBLISH_IP = '0.0.0.0'
+HTTP_PUBLISH_PORT = 9090
