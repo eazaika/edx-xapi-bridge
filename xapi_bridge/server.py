@@ -13,7 +13,7 @@ class StatusOKRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.send_response(200, 'OK')
         self.end_headers()
 
-httpd = SocketServer.ForkingTCPServer((
+httpd = SocketServer.TCPServer((
     getattr(settings, 'HTTP_PUBLISH_IP', '0.0.0.0'), 
     getattr(settings, 'HTTP_PUBLISH_PORT', 9090)),
     StatusOKRequestHandler)
