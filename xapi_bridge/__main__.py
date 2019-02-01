@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import threading
+import time
 
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
 from tincan import statement_list
@@ -164,20 +165,28 @@ def watch(watch_file):
 
 if __name__ == '__main__':
 
-    if settings.HTTP_PUBLISH_STATUS is True:
-        # open a TCP socket and HTTP server for simple OK status response
-        # for service uptime monitoring
-        server.httpd.serve_forever()
+    try:
 
-    # try to connect to the LRS immediately
-    lrs = client.lrs
-    resp = lrs.about()
-    if resp.success:
-        logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.content))
-    else:
-        e = exceptions.XAPIBridgeLRSConnectionError(resp)
-        e.err_fail()
+        if settings.HTTP_PUBLISH_STATUS is True:
+            # open a TCP socket and HTTP server for simple OK status response
+            # for service uptime monitoring
+            server.httpd.serve_forever()
 
-    log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-    print 'Watching file', log_path
-    watch(log_path)
+        # try to connect to the LRS immediately
+        lrs = client.lrs
+        resp = lrs.about()
+        if resp.success:
+            logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.content))
+        else:
+            e = exceptions.XAPIBridgeLRSConnectionError(resp)
+            e.err_fail()
+
+        log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
+        print 'Watching file', log_path
+        watch(log_path)
+    except (SystemExit, KeyboardInterrupt):
+        if settings.HTTP_PUBLISH_STATUS is True:
+            print "Shutting down http server"
+            server.httpd.server_close()
+            time.sleep(5)
+        raise
