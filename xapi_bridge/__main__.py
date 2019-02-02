@@ -165,7 +165,8 @@ if __name__ == '__main__':
         if settings.HTTP_PUBLISH_STATUS is True:
             # open a TCP socket and HTTP server for simple OK status response
             # for service uptime monitoring
-            server.httpd.serve_forever()
+            thread = threading.Thread(target=server.httpd.serve_forever)
+            thread.daemon = True
 
         # try to connect to the LRS immediately
         lrs = client.lrs
