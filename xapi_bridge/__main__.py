@@ -135,11 +135,6 @@ class TailHandler(ProcessEvent):
                 except (exceptions.XAPIBridgeStatementConversionError, ) as e:
                     e.err_continue_msg()
 
-                # except (errors we want to capture exception info in Sentry):
-                #     e.err_continue_exc()
-                # except (Fatal exceptions, ) as e:
-                    # e.err_fail()
-
                 if xapi is not None:
                     for i in xapi:
                         self.publish_queue.push(i)
