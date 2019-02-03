@@ -10,9 +10,6 @@ from xapi_bridge import exceptions
 from xapi_bridge import settings
 
 
-# TODO: wrap RemoteLRS with some custom exception handling
-# TODO: logging
-
 kw = {
     'endpoint': settings.LRS_ENDPOINT,
 }

@@ -82,6 +82,10 @@ Rename the file `xapi-bridge/settings-dist.py` to `settings.py` and change the p
 
     Specify a valid Sentry.io DSN and install the requirements in `requirements/production.txt` to enable logging to Sentry.
 
+* `HTTP_PUBLISH_STATUS`, `HTTP_PUBLISH_IP`, `HTTP_PUBLISH_PORT`
+
+  Set `HTTP_PUBLISH_STATUS` to True to run a simple HTTP Server which responds to any GET request with a 200 OK message. The port and IP listening range can be configured but default to `0.0.0.0` and `9090` respectively. This can be used to monitor the health of the process remotely.
+
 ## Running
 
 There is no process management yet, so just run the module directly:

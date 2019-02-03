@@ -9,14 +9,15 @@ from xapi_bridge import settings
 HAS_SENTRY_INTEGRATION = False
 
 
+logger = logging.getLogger(__name__)
+
+
 try:
     from sentry_sdk import capture_exception, capture_message, configure_scope
     HAS_SENTRY_INTEGRATION = True
 except ImportError:
     logger.info("No Sentry.io integration defined for xapi Bridge")
 
-
-logger = logging.getLogger(__name__)
 
 
 class XAPIBridgeSentryMixin(object):
