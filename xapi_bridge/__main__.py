@@ -168,8 +168,14 @@ def watch(watch_file):
 
 if __name__ == '__main__':
 
-    try:
+    logging.basicConfig(
+        filename='/edx/var/log/xapi/xapi_bridge.log',
+        filemode='a+',
+        format='%(levelname)s:%(message)s',
+        level=logging.INFO
+    )
 
+    try:
         if settings.HTTP_PUBLISH_STATUS is True:
             # open a TCP socket and HTTP server for simple OK status response
             # for service uptime monitoring
