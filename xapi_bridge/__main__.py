@@ -1,6 +1,7 @@
 """Main process with queue management and remote LRS communication."""
 
 
+from datetime import datetime
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ class QueueManager:
         self.cache_lock = threading.Lock()
         self.publish_timer = None
         self.publish_retries = 0
+        self.total_published_successfully = 0
 
     def __del__(self):
         self.destroy()
@@ -69,6 +71,12 @@ class QueueManager:
                     lrs_resp = client.lrs_publisher.publish_statements(statements)
                     lrs_success = True
                     self.publish_retries = 0  # reset retries
+                    self.total_published_successfully += len(statements)
+                    print "{} statements published successfully".format(self.total_published_successfully)
+                    if getattr(settings, 'TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK', 0) > 0:
+                        benchmark = settings.TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK
+                        if self.total_published_successfully >= benchmark:
+                            print "published {} or more statements at {}".format(benchmark, datetime.now())
                 except exceptions.XAPIBridgeLRSConnectionError as e:
                     # if it was an auth problem, fail
                     # if it was a connection problem, retry
@@ -178,7 +186,7 @@ if __name__ == '__main__':
             e.err_fail()
 
         log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-        print 'Watching file', log_path
+        print 'Watching file {}, starting time {}'.format(log_path, str(datetime.now()))
         watch(log_path)
     except (SystemExit, KeyboardInterrupt):
         if settings.HTTP_PUBLISH_STATUS is True:

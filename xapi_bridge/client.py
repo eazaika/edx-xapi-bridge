@@ -65,9 +65,6 @@ class XAPIBridgeLRSPublisher(object):
                 if self.lrs_backend.request_unauthorised(lrs_resp.data):
                     raise exceptions.XAPIBridgeLRSConnectionError(lrs_resp)
                 elif self.lrs_backend.response_has_storage_errors(lrs_resp.data):
-                    # resp_dict.get(self.lrs_backend.error_data_marker):  # 'warnings'
-                    # bad Statement(s)
-                    # TODO: how do we get the offending statement?
                     badstmt = self._get_response_erroring_statement(lrs_resp)
                     raise exceptions.XAPIBridgeStatementStorageError(statement=statements[badstmt], message=resp_dict.get('message',''))
 
