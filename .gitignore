@@ -5,3 +5,5 @@
 env
 
 xapi_bridge/settings.py
+
+xapi_bridge/test/fixtures/test_loadtest_event_log.log
