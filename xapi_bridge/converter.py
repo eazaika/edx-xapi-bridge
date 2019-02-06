@@ -1,7 +1,12 @@
 """Convert tracking log entries to xAPI statements."""
 
+import logging
+
 from xapi_bridge import exceptions, settings
 from xapi_bridge.statements import base, course, navigation, problem, video
+
+
+logger = logging.getLogger(__name__)
 
 
 TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
@@ -67,7 +72,10 @@ def to_xapi(evt):
     except KeyError:  # untracked event
         return
 
-    statement = statement_class(evt)
+    try:
+        statement = statement_class(evt)
+    except exceptions.XAPIBridgeSkippedConversion:
+        logger.debug("Skipping conversion of event with message {}.  Event was {}".format(evt))
 
     if hasattr(statement, 'version'):  # make sure it's a proper statement
         return (statement, )

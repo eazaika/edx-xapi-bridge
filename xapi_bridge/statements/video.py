@@ -6,7 +6,7 @@ Conformant with ADLNet Video xAPI Profile https://w3id.org/xapi/video/v1.0.2
 from tincan import Activity, ActivityDefinition, Context, Extensions, LanguageMap, Result, Verb
 
 import block
-from xapi_bridge import constants, settings
+from xapi_bridge import constants, exceptions, settings
 
 
 VIDEO_STATE_CHANGE_VERB_MAP = {
@@ -89,7 +89,7 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
         try:
             verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
         except KeyError:
-            return None
+            return exceptions.XAPIBridgeSkippedConversion("unhandled video event: {}".event_type)
         return Verb(
             id=verb_props['id'],
             display=verb_props['display'],

@@ -135,3 +135,8 @@ class XAPIBridgeLRSBackendResponseParseError(XAPIBridgeException):
     def __init__(self, response_data='', *args):
         self.message = "Problem parsing problem from backend response: {}".format(response_data)
         super(XAPILRSBridgeBackendResponseParseError, self).__init__(self.message, *args)
+
+
+class XAPIBridgeSkippedConversion(XAPIBridgeException):
+    """Raised if statement conversion is skipped due to some internal logic of Statement class.
+    """

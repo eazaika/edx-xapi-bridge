@@ -6,7 +6,7 @@ import json
 from tincan import Activity, ActivityDefinition, LanguageMap, Result, Verb
 
 import block
-from xapi_bridge import constants, settings
+from xapi_bridge import constants, exceptions, settings
 
 
 
@@ -39,7 +39,7 @@ class ProblemCheckStatement(ProblemStatement):
         # 'problem_check' events are emitted from both browser and server
         # and we only want the server event
         if event['event_source'].lower() != 'server':
-            return None  # will be excluded from StatementList
+            raise exceptions.XAPIBridgeSkippedConversion("Don't convert problem checks from server")
         super(ProblemCheckStatement, self).__init__(event, *args, **kwargs)
 
     def get_verb(self, event):
