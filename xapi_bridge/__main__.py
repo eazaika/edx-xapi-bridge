@@ -168,12 +168,11 @@ def watch(watch_file):
 
 if __name__ == '__main__':
 
-    if settings.DEBUG_MODE:
+    if getattr(settings, 'DEBUG_MODE', False):
         logging.basicConfig(
             format='%(levelname)s:%(message)s',
             level=logging.DEBUG
         )
-
     else:
         logging.basicConfig(
         filename='/edx/var/log/xapi/xapi_bridge.log',
