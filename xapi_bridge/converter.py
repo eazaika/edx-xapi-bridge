@@ -74,11 +74,10 @@ def to_xapi(evt):
 
     try:
         statement = statement_class(evt)
+        if hasattr(statement, 'version'):  # make sure it's a proper statement
+            return (statement, )
+        else:
+            message = "Statement missing version."
+            raise exceptions.XAPIBridgeStatementConversionError(event=evt, message=message)
     except exceptions.XAPIBridgeSkippedConversion as e:
         logger.debug("Skipping conversion of event with message {}.  Event was {}".format(e.message, evt))
-
-    if hasattr(statement, 'version'):  # make sure it's a proper statement
-        return (statement, )
-    else:
-        message = "Statement missing version."
-        raise exceptions.XAPIBridgeStatementConversionError(event=evt, message=message)
