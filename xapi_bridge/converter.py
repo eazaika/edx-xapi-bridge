@@ -74,8 +74,8 @@ def to_xapi(evt):
 
     try:
         statement = statement_class(evt)
-    except exceptions.XAPIBridgeSkippedConversion:
-        logger.debug("Skipping conversion of event with message {}.  Event was {}".format(evt))
+    except exceptions.XAPIBridgeSkippedConversion as e:
+        logger.debug("Skipping conversion of event with message {}.  Event was {}".format(e.message, evt))
 
     if hasattr(statement, 'version'):  # make sure it's a proper statement
         return (statement, )
