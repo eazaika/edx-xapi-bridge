@@ -1,7 +1,8 @@
 """xAPI Client to send payload data."""
 
-import json
 import importlib
+import json
+import logging
 import socket
 
 from tincan.remote_lrs import RemoteLRS
@@ -19,6 +20,8 @@ else:
     kw['username'] = settings.LRS_USERNAME
     kw['password'] = settings.LRS_PASSWORD
 
+
+logger = logging.getLogger(__name__)
 
 lrs = RemoteLRS(**kw)
 
@@ -54,7 +57,7 @@ class XAPIBridgeLRSPublisher(object):
 
         if lrs_resp.success:
             for st in lrs_resp.content:
-                print "Succeeded sending statement {}".format(st.to_json())
+                logger.info("Succeeded sending statement {}".format(st.to_json()))
             return lrs_resp
         else:
             resp_dict = json.loads(lrs_resp.data)

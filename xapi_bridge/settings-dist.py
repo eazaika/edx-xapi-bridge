@@ -43,6 +43,7 @@ HTTP_PUBLISH_IP = '0.0.0.0'
 HTTP_PUBLISH_PORT = 9090
 
 # Debugging
+DEBUG_MODE = False
 EXCEPTIONS_NO_CONTINUE = False  # set to True to always raise, fail application
 
 # Testing
