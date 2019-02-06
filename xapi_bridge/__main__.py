@@ -1,6 +1,7 @@
 """Main process with queue management and remote LRS communication."""
 
 
+from datetime import datetime
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ class QueueManager:
         self.cache_lock = threading.Lock()
         self.publish_timer = None
         self.publish_retries = 0
+        self.total_published_successfully = 0
 
     def __del__(self):
         self.destroy()
@@ -69,6 +71,12 @@ class QueueManager:
                     lrs_resp = client.lrs_publisher.publish_statements(statements)
                     lrs_success = True
                     self.publish_retries = 0  # reset retries
+                    self.total_published_successfully += len(statements)
+                    logger.debug("{} statements published successfully".format(self.total_published_successfully))
+                    if getattr(settings, 'TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK', 0) > 0:
+                        benchmark = settings.TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK
+                        if self.total_published_successfully >= benchmark:
+                            logger.debug("published {} or more statements at {}".format(benchmark, datetime.now()))
                 except exceptions.XAPIBridgeLRSConnectionError as e:
                     # if it was an auth problem, fail
                     # if it was a connection problem, retry
@@ -126,7 +134,7 @@ class TailHandler(ProcessEvent):
                 try:
                     evt_obj = json.loads(e)
                 except ValueError:
-                    print 'Could not parse JSON for', e
+                    logger.warn('Could not parse JSON for', e)
                     continue
 
                 xapi = None
@@ -155,13 +163,25 @@ def watch(watch_file):
         # flush queue before exiting
         th.publish_queue.publish()
 
-    print 'Exiting'
+    logger.info('Exiting')
 
 
 if __name__ == '__main__':
 
-    try:
+    if getattr(settings, 'DEBUG_MODE', False):
+        logging.basicConfig(
+            format='%(levelname)s:%(message)s',
+            level=logging.DEBUG
+        )
+    else:
+        logging.basicConfig(
+        filename='/edx/var/log/xapi/xapi_bridge.log',
+        filemode='a+',
+        format='%(levelname)s:%(message)s',
+        level=logging.INFO
+        )
 
+    try:
         if settings.HTTP_PUBLISH_STATUS is True:
             # open a TCP socket and HTTP server for simple OK status response
             # for service uptime monitoring
@@ -172,17 +192,18 @@ if __name__ == '__main__':
         lrs = client.lrs
         resp = lrs.about()
         if resp.success:
-            logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.content))
+            logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
+            logger.debug(resp.data)
         else:
             e = exceptions.XAPIBridgeLRSConnectionError(resp)
             e.err_fail()
 
         log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-        print 'Watching file', log_path
+        logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
         watch(log_path)
     except (SystemExit, KeyboardInterrupt):
         if settings.HTTP_PUBLISH_STATUS is True:
-            print "Shutting down http server"
+            logger.info("Shutting down http server")
             server.httpd.server_close()
             time.sleep(5)
         raise
