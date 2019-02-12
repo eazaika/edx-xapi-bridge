@@ -206,5 +206,5 @@ if __name__ == '__main__':
         if settings.HTTP_PUBLISH_STATUS is True:
             logger.info("Shutting down http server")
             server.httpd.server_close()
-            time.sleep(5)
+            time.sleep(1)
         raise
