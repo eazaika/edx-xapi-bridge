@@ -48,7 +48,7 @@ class XAPIBridgeSentryMixin(object):
                 if hasattr(self, 'event'):
                     user = self.event['username']
                     extra_context.update({'Tracking Log Event': json.dumps(self.event)})
-                if hasattr(self, 'queue'):
+                if hasattr(self, 'queue') and self.queue is not None:
                     extra_context.update({'Queued unsent Statements': '\n'.join(st.to_json() for st in self.queue)})
                 scope = self.update_sentry_scope(scope, 'warning', **extra_context)
                 if log_type == 'exception':
