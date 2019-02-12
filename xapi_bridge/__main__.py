@@ -187,6 +187,7 @@ if __name__ == '__main__':
             # for service uptime monitoring
             thread = threading.Thread(target=server.httpd.serve_forever)
             thread.daemon = True
+            thread.start()
 
         # try to connect to the LRS immediately
         lrs = client.lrs

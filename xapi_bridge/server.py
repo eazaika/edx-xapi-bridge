@@ -9,8 +9,8 @@ class StatusOKRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     def do_GET(self):
         """Respond to any request with a basic 'OK' status, for uptime monitoring.
         """
-        self.send_header('Content-type', 'text/html')
         self.send_response(200, 'OK')
+        self.send_header('Content-type', 'text/html')
         self.end_headers()
 
 
