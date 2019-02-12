@@ -3,6 +3,7 @@
 import logging
 import json
 import os
+import time
 
 from xapi_bridge import settings
 
@@ -84,6 +85,7 @@ class XAPIBridgeException(Exception, XAPIBridgeSentryMixin):
 
     def err_fail(self):
         self.log_error('exception')
+        time.sleep(4)
         SystemExit("Terminal exception: {}".format(self.message))
         os._exit(os.EX_UNAVAILABLE)  # TODO: for some reason SystemExit isn't killing the program
 
