@@ -15,7 +15,7 @@ kw = {
     'endpoint': settings.LRS_ENDPOINT,
 }
 if settings.LRS_BASICAUTH_HASH:
-    kw['auth'] = settings.LRS_BASICAUTH_HASH
+    kw['auth'] = "Basic {}".format(settings.LRS_BASICAUTH_HASH)
 else:
     kw['username'] = settings.LRS_USERNAME
     kw['password'] = settings.LRS_PASSWORD
