@@ -57,7 +57,9 @@ class UserApiClient(object):
 
             try:
                 resp = self.client.accounts(username).get()
+
                 if resp:
+                    resp.close()
                     return {'email': resp['email'], 'fullname': resp['name']}
                 else:
                     # TODO: look at other reasons for no resp.success
