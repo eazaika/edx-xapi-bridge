@@ -88,7 +88,7 @@ class ProblemSubmittedStatement(ProblemStatement):
                 'raw': earned,
                 'min': 0,
                 'max': possible,
-                'scaled': float(earned / possible)
+                'scaled': float(earned / possible) if possible > 0 else 0
             },
             success=True if earned >= possible else False,
         )
