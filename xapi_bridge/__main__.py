@@ -155,10 +155,10 @@ def watch(watch_file):
 
     with TailHandler(watch_file) as th:
 
-        notifier = Notifier(wm, th)
+        notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
         wm.add_watch(watch_file, TailHandler.MASK)
 
-        notifier.loop()
+        notifier.loop(daemonize=True)
 
         # flush queue before exiting
         th.publish_queue.publish()

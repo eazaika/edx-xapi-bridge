@@ -8,6 +8,15 @@ PUBLISH_MAX_PAYLOAD = 10
 # maximum publish retries on LRS connection error
 PUBLISH_MAX_RETRIES = 1
 
+# sleep time between polls of watched log file, in seconds
+NOTIFIER_READ_FREQ = 2
+
+# how long to wait for activity when polling, in milliseconds
+# https://docs.python.org/2.4/lib/poll-objects.html
+# If timeout is omitted, negative, or None, the call will block until
+# there is an event for this poll object.
+NOTIFIER_POLL_TIMEOUT = 1000
+
 # lrs credentials
 LRS_ENDPOINT = 'https://lrs.adlnet.gov/xAPI/'
 LRS_USERNAME = 'fakeuser'
