@@ -115,6 +115,8 @@ class TailHandler(ProcessEvent):
         return self
 
     def __exit__(self, type, value, tb):
+        # flush queue before exiting
+        self.publish_queue.publish()
         self.publish_queue.destroy()
 
     def process_IN_MODIFY(self, event):
@@ -155,13 +157,10 @@ def watch(watch_file):
 
     with TailHandler(watch_file) as th:
 
+        logger.debug('adding pyinotify watcher/notifier')
         notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
         wm.add_watch(watch_file, TailHandler.MASK)
-
-        notifier.loop(daemonize=True)
-
-        # flush queue before exiting
-        th.publish_queue.publish()
+        notifier.loop()
 
     logger.info('Exiting')
 
