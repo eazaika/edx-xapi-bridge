@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 
-from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
+from pyinotify import WatchManager, Notifier, NotifierError, EventsCodes, ProcessEvent
 from tincan import statement_list
 
 from xapi_bridge import client
@@ -98,10 +98,19 @@ class QueueManager:
                 self.publish_timer.cancel()
 
 
+class NotifierLostINodeException(NotifierError):
+    """Exception to handle inotify loss of current watched inode."""
+
+
 class TailHandler(ProcessEvent):
     """Parse incoming log events, convert to xapi, and add to publish queue."""
 
-    MASK = EventsCodes.OP_FLAGS['IN_MODIFY']
+    # watch create and moved to events since tracking log may be re-created during log rotation
+    # example inotifywatch /edx/var/log/tracking/tracking.log output:
+    # (after performing a sudo logrotate --force /edx/var/log/tracking/tracking.log)
+    # total  access  modify  attrib  close_write  open  move_self  delete_self  filename
+    # 30     16      7       1       2            1     1          1            /edx/var/log/tracking/tracking.log
+    MASK = EventsCodes.OP_FLAGS['IN_MODIFY'] | EventsCodes.OP_FLAGS['IN_MOVE_SELF']
 
     def __init__(self, filename):
 
@@ -114,10 +123,11 @@ class TailHandler(ProcessEvent):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, etype, value, traceback):
         # flush queue before exiting
         self.publish_queue.publish()
         self.publish_queue.destroy()
+        self.ifp.close()
 
     def process_IN_MODIFY(self, event):
         """Handle any changes to the log file."""
@@ -150,19 +160,28 @@ class TailHandler(ProcessEvent):
                         self.publish_queue.push(i)
                         # print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
 
+    def process_IN_MOVE_SELF(self, event):
+        """Handle moved tracking log file."""
+        raise NotifierLostINodeException()
+
 
 def watch(watch_file):
     """Watch the given file for changes."""
+    logger.info('Starting watch')
     wm = WatchManager()
 
-    with TailHandler(watch_file) as th:
-
-        logger.debug('adding pyinotify watcher/notifier')
-        notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
-        wm.add_watch(watch_file, TailHandler.MASK)
-        notifier.loop()
-
-    logger.info('Exiting')
+    try:
+        with TailHandler(watch_file) as th:
+            logger.debug('adding pyinotify watcher/notifier')
+            notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
+            wm.add_watch(watch_file, TailHandler.MASK)
+            notifier.loop()
+    except NotifierLostINodeException:
+        # end and restart watch
+        notifier.stop()
+        watch(watch_file)
+    finally:
+        logger.info('Exiting watch')
 
 
 if __name__ == '__main__':
