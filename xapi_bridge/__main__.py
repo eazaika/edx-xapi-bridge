@@ -110,7 +110,9 @@ class TailHandler(ProcessEvent):
     # (after performing a sudo logrotate --force /edx/var/log/tracking/tracking.log)
     # total  access  modify  attrib  close_write  open  move_self  delete_self  filename
     # 30     16      7       1       2            1     1          1            /edx/var/log/tracking/tracking.log
-    MASK = EventsCodes.OP_FLAGS['IN_MODIFY'] | EventsCodes.OP_FLAGS['IN_MOVE_SELF']
+    # depending on the kernel and underlying inotify, either or both of IN_MOVE_SELF or IN_DELETE_SELF will fire
+    # exit the handler on whichever fires first
+    MASK = EventsCodes.OP_FLAGS['IN_MODIFY'] | EventsCodes.OP_FLAGS['IN_MOVE_SELF'] | EventsCodes.OP_FLAGS['IN_DELETE_SELF']
 
     def __init__(self, filename):
 
@@ -161,7 +163,11 @@ class TailHandler(ProcessEvent):
                         # print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
 
     def process_IN_MOVE_SELF(self, event):
-        """Handle moved tracking log file."""
+        """Handle moved tracking log file; e.g., during log rotation."""
+        raise NotifierLostINodeException()
+
+    def process_IN_DELETE_SELF(self, event):
+        """Handle deletion of tracking log file e.g., during log rotation."""
         raise NotifierLostINodeException()
 
 
