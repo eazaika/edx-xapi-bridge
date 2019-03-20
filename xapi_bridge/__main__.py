@@ -199,8 +199,10 @@ def signal_terminate_handler(signum, frame):
     """Handle terminating signals from terminal or sysctl to properly shut down."""
     if settings.HTTP_PUBLISH_STATUS is True:
         logger.info("Shutting down http server")
-        server.httpd.server_close()
-        time.sleep(1)
+        http_server.shutdown()
+        http_server.socket.close()
+        thread.join(2.0)
+
     raise SystemExit
 
 
@@ -226,7 +228,8 @@ if __name__ == '__main__':
     if settings.HTTP_PUBLISH_STATUS is True:
         # open a TCP socket and HTTP server for simple OK status response
         # for service uptime monitoring
-        thread = threading.Thread(target=server.httpd.serve_forever)
+        http_server = server.httpd
+        thread = threading.Thread(target=http_server.serve_forever)
         thread.daemon = True
         thread.start()
 
