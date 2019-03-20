@@ -115,10 +115,10 @@ class TailHandler(ProcessEvent):
     # exit the handler on whichever fires first
     MASK = EventsCodes.OP_FLAGS['IN_MODIFY'] | EventsCodes.OP_FLAGS['IN_MOVE_SELF'] | EventsCodes.OP_FLAGS['IN_DELETE_SELF']
 
-    def __init__(self, filename):
-
+    def my_init(self, **kw):
+        # called via __init__ on superclass
         # prepare file input stream
-        self.ifp = open(filename, 'r', 1)
+        self.ifp = open(kw['filename'], 'r', 1)
         self.ifp.seek(0, 2)
         self.publish_queue = QueueManager()
         self.raceBuffer = ''
@@ -182,13 +182,14 @@ def watch(watch_file):
     wm = WatchManager()
 
     try:
-        with TailHandler(watch_file) as th:
+        with TailHandler(filename=watch_file) as th:
             logger.debug('adding pyinotify watcher/notifier')
             notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
             wm.add_watch(watch_file, TailHandler.MASK)
             notifier.loop()
     except NotifierLostINodeException:
         # end and restart watch
+        logger.info("stopping notifier and restarting watch")
         notifier.stop()  # close inotify instance
         watch(watch_file)
     finally:
