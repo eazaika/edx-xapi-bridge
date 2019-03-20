@@ -165,13 +165,15 @@ class TailHandler(ProcessEvent):
 
     def process_IN_MOVE_SELF(self, event):
         """Handle moved tracking log file; e.g., during log rotation."""
-        logger.info("caught inotify IN_MOVE_SELF (tracking log file moved)")
-        raise NotifierLostINodeException()
+        msg = "caught inotify IN_MOVE_SELF (tracking log file moved)"
+        logger.info(msg)
+        raise NotifierLostINodeException(msg)
 
     def process_IN_DELETE_SELF(self, event):
         """Handle deletion of tracking log file e.g., during log rotation."""
-        logger.info("caught inotify IN_DELETE_SELF (tracking log file deleted)")
-        raise NotifierLostINodeException()
+        msg = "caught inotify IN_DELETE_SELF (tracking log file deleted)"
+        logger.info(msg)
+        raise NotifierLostINodeException(msg)
 
 
 def watch(watch_file):
