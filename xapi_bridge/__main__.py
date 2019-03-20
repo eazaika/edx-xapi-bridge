@@ -197,7 +197,7 @@ def signal_terminate_handler(signum, frame):
         logger.info("Shutting down http server")
         server.httpd.server_close()
         time.sleep(1)
-    raise
+    raise SystemExit
 
 
 for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
@@ -219,30 +219,23 @@ if __name__ == '__main__':
         level=logging.INFO
         )
 
-    try:
-        if settings.HTTP_PUBLISH_STATUS is True:
-            # open a TCP socket and HTTP server for simple OK status response
-            # for service uptime monitoring
-            thread = threading.Thread(target=server.httpd.serve_forever)
-            thread.daemon = True
-            thread.start()
+    if settings.HTTP_PUBLISH_STATUS is True:
+        # open a TCP socket and HTTP server for simple OK status response
+        # for service uptime monitoring
+        thread = threading.Thread(target=server.httpd.serve_forever)
+        thread.daemon = True
+        thread.start()
 
-        # try to connect to the LRS immediately
-        lrs = client.lrs
-        resp = lrs.about()
-        if resp.success:
-            logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
-            logger.debug(resp.data)
-        else:
-            e = exceptions.XAPIBridgeLRSConnectionError(resp)
-            e.err_fail()
+    # try to connect to the LRS immediately
+    lrs = client.lrs
+    resp = lrs.about()
+    if resp.success:
+        logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
+        logger.debug(resp.data)
+    else:
+        e = exceptions.XAPIBridgeLRSConnectionError(resp)
+        e.err_fail()
 
-        log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-        logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
-        watch(log_path)
-    except (SystemExit, KeyboardInterrupt):
-        if settings.HTTP_PUBLISH_STATUS is True:
-            logger.info("Shutting down http server")
-            server.httpd.server_close()
-            time.sleep(1)
-        raise
+    log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
+    logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
+    watch(log_path)
