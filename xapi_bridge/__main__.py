@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import logging
 import os
+import signal
 import sys
 import threading
 import time
@@ -188,6 +189,19 @@ def watch(watch_file):
         watch(watch_file)
     finally:
         logger.info('Exiting watch')
+
+
+def signal_terminate_handler(signum, frame):
+    """Handle terminating signals from terminal or sysctl to properly shut down."""
+    if settings.HTTP_PUBLISH_STATUS is True:
+        logger.info("Shutting down http server")
+        server.httpd.server_close()
+        time.sleep(1)
+    raise
+
+
+for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
+    signal.signal(sig, signal_terminate_handler)
 
 
 if __name__ == '__main__':
