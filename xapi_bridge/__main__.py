@@ -5,11 +5,12 @@ from datetime import datetime
 import json
 import logging
 import os
+import signal
 import sys
 import threading
 import time
 
-from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
+from pyinotify import WatchManager, Notifier, NotifierError, EventsCodes, ProcessEvent
 from tincan import statement_list
 
 from xapi_bridge import client
@@ -98,15 +99,26 @@ class QueueManager:
                 self.publish_timer.cancel()
 
 
+class NotifierLostINodeException(NotifierError):
+    """Exception to handle inotify loss of current watched inode."""
+
+
 class TailHandler(ProcessEvent):
     """Parse incoming log events, convert to xapi, and add to publish queue."""
 
-    MASK = EventsCodes.OP_FLAGS['IN_MODIFY']
+    # watch create and moved to events since tracking log may be re-created during log rotation
+    # example inotifywatch /edx/var/log/tracking/tracking.log output:
+    # (after performing a sudo logrotate --force /edx/var/log/tracking/tracking.log)
+    # total  access  modify  attrib  close_write  open  move_self  delete_self  filename
+    # 30     16      7       1       2            1     1          1            /edx/var/log/tracking/tracking.log
+    # depending on the kernel and underlying inotify, either or both of IN_MOVE_SELF or IN_DELETE_SELF will fire
+    # exit the handler on whichever fires first
+    MASK = EventsCodes.OP_FLAGS['IN_MODIFY'] | EventsCodes.OP_FLAGS['IN_MOVE_SELF'] | EventsCodes.OP_FLAGS['IN_DELETE_SELF']
 
-    def __init__(self, filename):
-
+    def my_init(self, **kw):
+        # called via __init__ on superclass
         # prepare file input stream
-        self.ifp = open(filename, 'r', 1)
+        self.ifp = open(kw['filename'], 'r', 1)
         self.ifp.seek(0, 2)
         self.publish_queue = QueueManager()
         self.raceBuffer = ''
@@ -114,8 +126,11 @@ class TailHandler(ProcessEvent):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, etype, value, traceback):
+        # flush queue before exiting
+        self.publish_queue.publish()
         self.publish_queue.destroy()
+        self.ifp.close()
 
     def process_IN_MODIFY(self, event):
         """Handle any changes to the log file."""
@@ -148,22 +163,52 @@ class TailHandler(ProcessEvent):
                         self.publish_queue.push(i)
                         # print u'{} - {} {} {}'.format(i['timestamp'], i['actor']['name'], i['verb']['display']['en-US'], i['object']['definition']['name']['en-US'])
 
+    def process_IN_MOVE_SELF(self, event):
+        """Handle moved tracking log file; e.g., during log rotation."""
+        msg = "caught inotify IN_MOVE_SELF (tracking log file moved)"
+        logger.info(msg)
+        raise NotifierLostINodeException(msg)
+
+    def process_IN_DELETE_SELF(self, event):
+        """Handle deletion of tracking log file e.g., during log rotation."""
+        msg = "caught inotify IN_DELETE_SELF (tracking log file deleted)"
+        logger.info(msg)
+        raise NotifierLostINodeException(msg)
+
 
 def watch(watch_file):
     """Watch the given file for changes."""
+    logger.info('Starting watch')
     wm = WatchManager()
 
-    with TailHandler(watch_file) as th:
+    try:
+        with TailHandler(filename=watch_file) as th:
+            logger.debug('adding pyinotify watcher/notifier')
+            notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
+            wm.add_watch(watch_file, TailHandler.MASK)
+            notifier.loop()
+    except NotifierLostINodeException:
+        # end and restart watch
+        logger.info("stopping notifier and restarting watch")
+        notifier.stop()  # close inotify instance
+        watch(watch_file)
+    finally:
+        logger.info('Exiting watch')
 
-        notifier = Notifier(wm, th)
-        wm.add_watch(watch_file, TailHandler.MASK)
 
-        notifier.loop()
+def signal_terminate_handler(signum, frame):
+    """Handle terminating signals from terminal or sysctl to properly shut down."""
+    if settings.HTTP_PUBLISH_STATUS is True:
+        logger.info("Shutting down http server")
+        http_server.shutdown()
+        http_server.socket.close()
+        thread.join(2.0)
 
-        # flush queue before exiting
-        th.publish_queue.publish()
+    raise SystemExit
 
-    logger.info('Exiting')
+
+for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
+    signal.signal(sig, signal_terminate_handler)
 
 
 if __name__ == '__main__':
@@ -181,30 +226,24 @@ if __name__ == '__main__':
         level=logging.INFO
         )
 
-    try:
-        if settings.HTTP_PUBLISH_STATUS is True:
-            # open a TCP socket and HTTP server for simple OK status response
-            # for service uptime monitoring
-            thread = threading.Thread(target=server.httpd.serve_forever)
-            thread.daemon = True
-            thread.start()
+    if settings.HTTP_PUBLISH_STATUS is True:
+        # open a TCP socket and HTTP server for simple OK status response
+        # for service uptime monitoring
+        http_server = server.httpd
+        thread = threading.Thread(target=http_server.serve_forever)
+        thread.daemon = True
+        thread.start()
 
-        # try to connect to the LRS immediately
-        lrs = client.lrs
-        resp = lrs.about()
-        if resp.success:
-            logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
-            logger.debug(resp.data)
-        else:
-            e = exceptions.XAPIBridgeLRSConnectionError(resp)
-            e.err_fail()
+    # try to connect to the LRS immediately
+    lrs = client.lrs
+    resp = lrs.about()
+    if resp.success:
+        logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
+        logger.debug(resp.data)
+    else:
+        e = exceptions.XAPIBridgeLRSConnectionError(resp)
+        e.err_fail()
 
-        log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-        logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
-        watch(log_path)
-    except (SystemExit, KeyboardInterrupt):
-        if settings.HTTP_PUBLISH_STATUS is True:
-            logger.info("Shutting down http server")
-            server.httpd.server_close()
-            time.sleep(1)
-        raise
+    log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
+    logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
+    watch(log_path)
