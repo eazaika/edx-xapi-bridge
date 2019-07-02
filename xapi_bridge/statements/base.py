@@ -8,7 +8,7 @@ import json
 
 from tincan import Agent, Context, Statement, ActivityDefinition, LanguageMap
 
-from xapi_bridge import constants, exceptions, lms_api, settings
+from xapi_bridge import constants, exceptions, lms_api, settings, utils
 
 
 class LMSTrackingLogStatement(Statement):
@@ -35,8 +35,8 @@ class LMSTrackingLogStatement(Statement):
 
     def _get_edx_user_info(self, username):
         return {
-            'email': 'maksim.sokolskiy@raccoongang.com',
-            'fullname': 'Max Sokolski'
+            'email': utils.get_email_from_user(username),
+            'fullname': utils.get_full_name_from_user(username)
         }
 
     def _get_enrollment_id(self, event):

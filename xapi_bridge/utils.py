@@ -40,6 +40,25 @@ def get_username_from_user_id(user_id):
     user = User.objects.get(id=user_id)
     return str(user.username)
 
+def get_email_from_user(username):
+    """
+    @param : user_id
+    :return: email from the given username.
+    """
+
+    User = get_user_model()
+    user = User.objects.get(id=username)
+    return str(user.email)
+
+def get_full_name_from_user(username):
+    """
+    @param : user_id
+    :return: full_name from the given username.
+    """
+
+    User = get_user_model()
+    user = User.objects.get(username=username)
+    return str(user.get_full_name())
 
 def get_user_link_from_username(username):
     try:
