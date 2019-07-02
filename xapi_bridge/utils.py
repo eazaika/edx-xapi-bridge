@@ -47,7 +47,7 @@ def get_email_from_user(username):
     """
 
     User = get_user_model()
-    user = User.objects.get(id=username)
+    user = User.objects.get(username=username)
     return str(user.email)
 
 def get_full_name_from_user(username):
