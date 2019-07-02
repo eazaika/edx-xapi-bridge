@@ -71,5 +71,30 @@ class XAPIBridgeLRSPublisher(object):
                     badstmt = self._get_response_erroring_statement(lrs_resp)
                     raise exceptions.XAPIBridgeStatementStorageError(statement=statements[badstmt], message=resp_dict.get('message',''))
 
+    def publish_statement(self, statement):
+        """
+        params:
+        statement tincan.statement_list.Statement
+        """
+        try:
+            lrs_resp = lrs.save_statement(statement)
+        except (socket.gaierror, ) as e:  # can't connect at all, no response
+            raise exceptions.XAPIBridgeLRSConnectionError(queue=statement)
+
+        if lrs_resp.success:
+            logger.info("Succeeded sending statement {}".format(lrs_resp.content.to_json()))
+            return lrs_resp
+        else:
+            resp_dict = json.loads(lrs_resp.data)
+
+            # error message from LRS
+            if self.lrs_backend.response_has_errors(lrs_resp.data):
+                # authorization failure
+                if self.lrs_backend.request_unauthorised(lrs_resp.data):
+                    raise exceptions.XAPIBridgeLRSConnectionError(lrs_resp)
+                elif self.lrs_backend.response_has_storage_errors(lrs_resp.data):
+                    badstmt = self._get_response_erroring_statement(lrs_resp)
+                    raise exceptions.XAPIBridgeStatementStorageError(statement=badstmt, message=resp_dict.get('message',''))
+
 
 lrs_publisher = XAPIBridgeLRSPublisher()
