@@ -35,8 +35,8 @@ class LMSTrackingLogStatement(Statement):
 
     def _get_edx_user_info(self, username):
         return {
-            'email': 'test',
-            'fullname': 'test_fullname'
+            'email': 'maksim.sokolskiy@raccoongang.com',
+            'fullname': 'Max Sokolski'
         }
 
     def _get_enrollment_id(self, event):
