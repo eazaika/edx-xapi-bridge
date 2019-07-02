@@ -31,18 +31,19 @@ class UserApiClient(object):
         """
         # session = Session()
         # # session.headers = {"X-Edx-Api-Key": settings.OPENEDX_EDX_API_KEY}
-        token = EdxRestApiClient.get_oauth_access_token(
-            url="{}{}".format(settings.OPENEDX_PLATFORM_URI, constants.OPENEDX_OAUTH2_TOKEN_URL),
-            client_id=settings.OPENEDX_OAUTH2_CLIENT_ID,
-            client_secret=settings.OPENEDX_OAUTH2_CLIENT_SECRET,
-        )
-        self.cache = False
-        if settings.LMS_API_USE_MEMCACHED:
-            self.cache = memcache.Client([settings.MEMCACHED_ADDRESS], debug=0)
-        self.client = EdxRestApiClient(
-            self.API_BASE_URL, append_slash=self.APPEND_SLASH,
-            username="xapi_bridge", oauth_access_token=token[0]
-        )
+        # token = EdxRestApiClient.get_oauth_access_token(
+        #     url="{}{}".format(settings.OPENEDX_PLATFORM_URI, constants.OPENEDX_OAUTH2_TOKEN_URL),
+        #     client_id=settings.OPENEDX_OAUTH2_CLIENT_ID,
+        #     client_secret=settings.OPENEDX_OAUTH2_CLIENT_SECRET,
+        # )
+        # self.cache = False
+        # if settings.LMS_API_USE_MEMCACHED:
+        #     self.cache = memcache.Client([settings.MEMCACHED_ADDRESS], debug=0)
+        # self.client = EdxRestApiClient(
+        #     self.API_BASE_URL, append_slash=self.APPEND_SLASH,
+        #     username="xapi_bridge", oauth_access_token=token[0]
+        # )
+        pass
 
     def get_edx_user_info(self, username):
         """

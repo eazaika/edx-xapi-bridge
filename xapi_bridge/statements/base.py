@@ -14,8 +14,6 @@ from xapi_bridge import constants, exceptions, lms_api, settings
 class LMSTrackingLogStatement(Statement):
     """Base class for xAPI Bridge Statements from Open edX LMS tracking logs."""
 
-    user_api_client = lms_api.user_api_client
-
     def __init__(self, event, *args, **kwargs):
         """
         Initialize an xAPI Statement from a tracking log event.
@@ -36,7 +34,10 @@ class LMSTrackingLogStatement(Statement):
             raise exceptions.XAPIBridgeStatementConversionError(event=event, message=message)
 
     def _get_edx_user_info(self, username):
-        return self.user_api_client.get_edx_user_info(username)
+        return {
+            'email': 'test',
+            'fullname': 'test_fullname'
+        }
 
     def _get_enrollment_id(self, event):
         api_url = constants.ENROLLMENT_API_URL_FORMAT.format(username=event['username'], course_id=event['context']['course_id'])
