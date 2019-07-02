@@ -48,7 +48,7 @@ def get_email_from_user(username):
 
     User = get_user_model()
     user = User.objects.get(username=username)
-    return str(user.email)
+    return user.email
 
 def get_full_name_from_user(username):
     """
@@ -58,7 +58,7 @@ def get_full_name_from_user(username):
 
     User = get_user_model()
     user = User.objects.get(username=username)
-    return str(user.get_full_name())
+    return user.get_full_name() or user.username
 
 def get_user_link_from_username(username):
     try:
