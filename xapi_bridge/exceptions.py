@@ -111,7 +111,10 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
 
 
 class XAPIBridgeUserNotFoundError(XAPIBridgeException):
-    """Exception class for no LMS use found."""
+    """Exception class for no LMS user found."""
+
+class XAPIBridgeCourseNotFoundError(XAPIBridgeException):
+    """Exception class for no LMS course found."""
 
 
 class XAPIBridgeStatementConversionError(XAPIBridgeException):
@@ -137,7 +140,7 @@ class XAPIBridgeLRSBackendResponseParseError(XAPIBridgeException):
 
     def __init__(self, response_data='', *args):
         self.message = "Problem parsing problem from backend response: {}".format(response_data)
-        super(XAPILRSBridgeBackendResponseParseError, self).__init__(self.message, *args)
+        super(XAPIBridgeLRSBackendResponseParseError, self).__init__(self.message, *args)
 
 
 class XAPIBridgeSkippedConversion(XAPIBridgeException):
