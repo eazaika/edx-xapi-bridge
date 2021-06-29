@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Statement base classes for courseware blocks."""
 
 
@@ -14,13 +15,47 @@ class BlockActivityDefinition(ActivityDefinition):
             display_name = event['context']['module']['display_name']
         except KeyError:
             # not all events will have in the context
-            display_name = "Course Block"
+            display_name = "Составной КИМ"
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_MODULE,
-            'name': LanguageMap({'en': display_name}),
-            'description': LanguageMap({'en': 'A course block in a course delivered through Open edX'})
+            'name': LanguageMap({'ru-RU': display_name}),
+            'description': LanguageMap({'en-US': 'A course vertical section in a course delivered through Open edX'})
         })
         super(BlockActivityDefinition, self).__init__(*args, **kwargs)
+
+
+class BlockAssessmentDefinition(ActivityDefinition):
+    def __init__(self, event, *args, **kwargs):
+        try:
+            display_name = event['display_name']
+        except KeyError:
+            # not all events will have in the context
+            display_name = "Course Block"
+
+        if event['usage_key'].find('vertical+block') > 0:
+            block_type = 'vertical block'
+        elif event['usage_key'].find('sequential+block') > 0:
+            block_type = 'sequential block'
+        elif event['usage_key'].find('chapter+block') > 0:
+            block_type = 'chapter block'
+        else:
+            block_type = 'undefined'
+
+        kwargs.update({
+            'type': constants.XAPI_ASSESSMENT_MODULE,
+            'name': LanguageMap({'ru-RU': display_name}),
+            'description': LanguageMap({'en-US': block_type})
+        })
+
+        try:
+            ext_url = u'{}/question_amount'.format(settings.UNTI_XAPI_EXT_URL)
+            kwargs.update({
+                'extensions': { ext_url: event['childrens'] }
+            })
+        except:
+            pass
+
+        super(BlockAssessmentDefinition, self).__init__(*args, **kwargs)
 
 
 class BaseCoursewareBlockStatement(base.LMSTrackingLogStatement):

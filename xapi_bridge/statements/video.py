@@ -1,54 +1,57 @@
+# -*- coding: utf-8 -*-
 """xAPI Statements and Activities for verbs on courses as a whole.
 
 Conformant with ADLNet Video xAPI Profile https://w3id.org/xapi/video/v1.0.2
 """
-
-from tincan import Activity, ActivityDefinition, Context, Extensions, LanguageMap, Result, Verb
+import datetime
+from tincan import Activity, ActivityDefinition, ActivityList, Context, ContextActivities, Extensions, LanguageMap, Result, Verb
+from tincan.conversions.iso8601 import jsonify_timedelta
 
 import block
+import course
 from xapi_bridge import constants, exceptions, settings
 
 
 VIDEO_STATE_CHANGE_VERB_MAP = {
+    'watch_video': {
+        'id': constants.XAPI_VERB_WATCHED,
+        'display': LanguageMap({'en-US': 'watched', 'ru-RU': 'просмотр видео'})
+    },
     'load_video': {
         'id': constants.XAPI_VERB_INITIALIZED,
-        'display': LanguageMap({'en': 'loaded'})
+        'display': LanguageMap({'en-US': 'loaded'})
     },
     'ready_video': {
         'id': constants.XAPI_VERB_INITIALIZED,
-        'display': LanguageMap({'en': 'loaded'})
+        'display': LanguageMap({'en-US': 'loaded'})
     },
     'play_video': {
         'id': constants.XAPI_VERB_PLAYED,
-        'display': LanguageMap({'en': 'played'})
+        'display': LanguageMap({'en-US': 'played'})
     },
     'pause_video': {
         'id': constants.XAPI_VERB_PAUSED,
-        'display': LanguageMap({'en': 'paused'})
+        'display': LanguageMap({'en-US': 'paused'})
     },
     'stop_video': {
         'id': constants.XAPI_VERB_COMPLETED,
-        'display': LanguageMap({'en': 'completed'})
-    },
-    'seek_video': {
-        'id': constants.XAPI_VERB_SEEKED,
-        'display': LanguageMap({'en': 'seeked'})
+        'display': LanguageMap({'en-US': 'completed'})
     },
     'show_transcript': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'video transcript shown'})
+        'display': LanguageMap({'en-US': 'video transcript shown'})
     },
     'hide_transcript': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'video transcript hidden'})
+        'display': LanguageMap({'en-US': 'video transcript hidden'})
     },
     'edx.video.closed_captions.shown': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'video captions shown'})
+        'display': LanguageMap({'en-US': 'video captions shown'})
     },
     'edx.video.closed_captions.hidden': {
         'id': constants.XAPI_VERB_INTERACTED,
-        'display': LanguageMap({'en': 'video captions hidden'})
+        'display': LanguageMap({'en-US': 'video captions hidden'})
     },
 
 }
@@ -75,17 +78,25 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
         """
         Get object for the statement.
         """
+        event_data = self.get_event_data(event)
+        duration = event_data.get('duration', event_data.get('duration', 0))
+        total_time = jsonify_timedelta(datetime.timedelta(seconds=duration))
+
         return Activity(
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ACTIVITY_VIDEO,
-                name=LanguageMap({'en': 'Video'}),  # TODO: get video name if possible, but not in tracking logs
-                description=LanguageMap({'en': 'A video in an Open edX course'}),
+                name=LanguageMap({'en-US': 'Video'}),  # TODO: get video name if possible, but not in tracking logs
+                description=LanguageMap({'en-US': 'A video in an Open edX course'}),
+                extensions={
+                    constants.XAPI_CONTEXT_VIDEO_LENGTH: total_time,
+                }
             ),
         )
 
     def get_verb(self, event):
-        event_type = event['event_type'].replace("xblock-video.", "")
+        #event_type = event['event_type'].replace("xblock-video.", "")
+        event_type = 'watch_video'
         try:
             verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
         except KeyError:
@@ -98,13 +109,33 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
     def get_result(self, event):
         event_data = self.get_event_data(event)
         cur_time = event_data.get('currentTime', event_data.get('current_time', 0))
+        cur_time = float('{:.2f}'.format(cur_time))
+        cur_time = jsonify_timedelta((datetime.timedelta(seconds=cur_time)))
+
         return Result(
-            extensions={
-                constants.XAPI_RESULT_VIDEO_TIME: cur_time,
-            })
+            success=True,
+            completion=False,
+            duration=cur_time
+        )
 
     def get_context(self, event):
         return super(VideoStatement, self).get_context(event)
+
+    def get_context_activities(self, event):
+        parent_activities = [
+            Activity(
+                id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+                definition=course.CourseActivityDefinition(event)
+            ),
+            Activity(
+                id=event['referer'],
+                definition=block.BlockActivityDefinition(event)
+            )
+        ]
+
+        return ContextActivities(
+            parent=ActivityList(parent_activities)
+        )
 
 
 class VideoPlayStatement(VideoStatement):
@@ -112,16 +143,7 @@ class VideoPlayStatement(VideoStatement):
 
 
 class VideoPauseStatement(VideoStatement):
-    def get_context(self, event):
-        # TODO: not implemented but float video length value required for spec
-        # info is not included in tracking log event.  We should add that information
-        # in the Video XBlock
-        context = super(VideoPauseStatement, self).get_context(event)
-        context.extensions = {
-            constants.XAPI_CONTEXT_VIDEO_LENGTH: 0.0
-        }
-        return context
-
+    pass
 
 class VideoSeekStatement(VideoStatement):
     def get_result(self, event):
@@ -137,24 +159,12 @@ class VideoSeekStatement(VideoStatement):
 
 
 class VideoCompleteStatement(VideoStatement):
-    def get_context(self, event):
-        context = super(VideoCompleteStatement, self).get_context(event)
-        event_data = self.get_event_data(event)
-        cur_time = event_data.get('currentTime', event_data.get('current_time', 0))
-        context.extensions = Extensions({
-            #  length will be same as current time once stopped
-            constants.XAPI_CONTEXT_VIDEO_LENGTH: cur_time
-        })
-        return context
 
     def get_result(self, event):
         # TODO: consider calculating real progress. For now assume 100% if played til end
         # profile includes concept of a completion threshold which could be below 100% anyhow
         result = super(VideoCompleteStatement, self).get_result(event)
         result.completion = True
-        result.extensions.update({
-            constants.XAPI_RESULT_VIDEO_PROGRESS: 100  # this isn't necessarily true if student skipped content
-        })
         return result
 
 

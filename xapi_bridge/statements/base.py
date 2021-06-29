@@ -6,7 +6,7 @@
 from copy import deepcopy
 import json
 
-from tincan import Agent, Context, Statement, ActivityDefinition, LanguageMap
+from tincan import Agent, AgentAccount, Context, Statement, ActivityDefinition, LanguageMap, Result
 
 from xapi_bridge import constants, exceptions, lms_api, settings
 
@@ -27,8 +27,13 @@ class LMSTrackingLogStatement(Statement):
                 object=self.get_object(event),
                 result=self.get_result(event),
                 context=self.get_context(event),
-                timestamp=self.get_timestamp(event)
+                timestamp=self.get_timestamp(event),
+                authority=self.get_authority(),
             )
+            if event['event_type'] == 'edx.attachment':
+                kwargs.update(
+                    attachments=self.get_attachment(event)
+                )
             super(LMSTrackingLogStatement, self).__init__(*args, **kwargs)
         # wrap base exception types used in tincan package
         except (ValueError, TypeError, AttributeError) as e:
@@ -42,6 +47,12 @@ class LMSTrackingLogStatement(Statement):
         api_url = constants.ENROLLMENT_API_URL_FORMAT.format(username=event['username'], course_id=event['context']['course_id'])
         return "{}{}".format(settings.OPENEDX_PLATFORM_URI, api_url)
 
+    def get_authority(self):
+        return Agent(
+            name=settings.ORG_NAME,
+            mbox='mailto:{}'.format(settings.ORG_EMAIL),
+        )
+
     def get_event_data(self, event):
         if event['event_source'] == 'browser':
             return json.loads(event.get('event', "{}"))
@@ -50,7 +61,13 @@ class LMSTrackingLogStatement(Statement):
 
     def get_actor(self, event):
         """Get Actor for the statement."""
-        edx_user_info = self._get_edx_user_info(event['username'])
+        try:
+            edx_user_info = self._get_edx_user_info(event['event']['username'])
+        except:
+            if event['username'] == 'anonymous':
+                edx_user_info = self._get_edx_user_info(event['context']['module']['username'])
+            else:
+                edx_user_info = self._get_edx_user_info(event['username'])
 
         # this can happen in case a user was just deleted, or
         # in cases a user is automatically logged out while
@@ -61,16 +78,21 @@ class LMSTrackingLogStatement(Statement):
         if not edx_user_info['email']:
             return None
 
-        return Agent(
-            name=edx_user_info['fullname'],
-            mbox='mailto:{}'.format(edx_user_info['email']),
-        )
+        if settings.UNTI_XAPI and edx_user_info['unti_id']:
+            return Agent(
+                name=edx_user_info['fullname'],
+                account=AgentAccount(name=edx_user_info['unti_id'], home_page='https://my.2035.university'),
+            )
+        else:
+            return Agent(
+                name=edx_user_info['fullname'],
+                mbox='mailto:{}'.format(edx_user_info['email']),
+            )
 
     def get_context(self, event):
         """Get Context for the statement."""
         return Context(
             platform=settings.OPENEDX_PLATFORM_URI,
-            # registration=self._get_enrollment_id(event) TODO: not sure why this format doesn't work
         )
 
     def get_timestamp(self, event):
@@ -78,8 +100,11 @@ class LMSTrackingLogStatement(Statement):
         return event['time']
 
     def get_result(self, event):
-        # Not all activities have a result.
-        return None
+        event_data = self.get_event_data(event)
+        return Result(
+            success=event_data.get('success', True),
+            completion=True,
+        )
 
 
 class ReferringActivityDefinition(ActivityDefinition):

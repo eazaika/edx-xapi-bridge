@@ -23,6 +23,7 @@ XAPI_VERB_INTERACTED = "http://activitystrea.ms/schema/1.0/interact"
 XAPI_ACTIVITY_QUESTION = 'http://adlnet.gov/expapi/activities/question'
 XAPI_ACTIVITY_INTERACTION = 'http://adlnet.gov/expapi/activities/interaction'
 XAPI_ACTIVITY_COURSE = 'http://adlnet.gov/expapi/activities/course'
+XAPI_ACTIVITY_MODULE = 'http://adlnet.gov/expapi/activities/module'
 XAPI_ASSESSMENT_MODULE = 'http://adlnet.gov/expapi/activities/assessment'
 XAPI_ACTIVITY_VIDEO = 'http://activitystrea.ms/schema/1.0/video'
 XAPI_ACTIVITY_LINK = 'http://adlnet.gov/expapi/activities/link'

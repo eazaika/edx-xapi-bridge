@@ -1,11 +1,13 @@
+# -*- coding: utf-8 -*-
 """xAPI Statements and Activities for verbs on courses as a whole."""
 
 
 import json
 
-from tincan import Activity, ActivityDefinition, LanguageMap, Result, Verb
+from tincan import Activity, ActivityDefinition, ActivityList, LanguageMap, Result, Verb, ContextActivities
 
 import block
+import course
 from xapi_bridge import constants, exceptions, settings
 
 
@@ -21,15 +23,26 @@ class ProblemStatement(block.BaseCoursewareBlockStatement):
             display_name = event['context']['module']['display_name']
         except KeyError:
             display_name = "Problem"
+
+        try:
+            event_data = self.get_event_data(event)
+            submission = event_data['submission'][event_data['submission'].keys()[0]]
+            question = submission['question'].replace('\"', '')
+        except KeyError:
+            question = event['context']['question']
+
         return Activity(
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ACTIVITY_INTERACTION, # could be _QUESTION if not CAPA
-                name=LanguageMap({'en': display_name}),
-                description=LanguageMap({'en': 'A problem in an Open edX course'}),
+                name=LanguageMap({'ru-RU': question}),
+                description=LanguageMap({'ru-RU': display_name}),
                 # TODO: interactionType, correctResponsesPattern, choices, if possible
             ),
         )
+
+class ProblemGradedStatement(ProblemStatement):
+    """Statement for student gave answer to a problem."""
 
 
 class ProblemCheckStatement(ProblemStatement):
@@ -45,14 +58,28 @@ class ProblemCheckStatement(ProblemStatement):
     def get_verb(self, event):
         return Verb(
             id=constants.XAPI_VERB_ANSWERED,
-            display=LanguageMap({'en': 'answered'}),
+            display=LanguageMap({'en-US': 'answered', 'ru-RU': 'дан ответ'}),
         )
 
     def get_result(self, event):
         event_data = self.get_event_data(event)
         # for now we are going to assume one submission
         # TODO: when is that not true? is it ever not true? What problem types?
-        submission = event_data['submission'][event_data['submission'].keys()[0]]
+        try:
+            data = event_data['submission'][event_data['submission'].keys()[0]]
+            answer = data['answer']
+            log.error('TYPE {}'.format(type(answer)))
+            if type(answer) is not unicode:
+                answer = ', '.join("<%s>" % item for item in answer)
+            answer = answer.replace('\"', '').strip() #.replace('\\\\', '')
+        except:
+            answer = event['context']['answer'].strip() #.replace('\\\\', '')
+
+        try:
+            success = event_data['success'] == 'correct'
+        except:
+            success = event['event']['grade'] == event['event']['max_grade']
+
         return Result(
             score={
                 'raw': event_data['grade'],
@@ -60,10 +87,30 @@ class ProblemCheckStatement(ProblemStatement):
                 'max': event_data['max_grade'],
                 'scaled': float(event_data['grade'] / event_data['max_grade'])
             },
-            success=event_data['success'] == 'correct',
+            success=success,
             # TODO: to determine completion would need to know max allowed attempts?
             # probably should return True here but uswe a result extension for num attempts/attempts left 
-            response=json.dumps(submission['answer'])
+            response=answer.encode('utf-8')
+        )
+
+    def get_context_activities(self, event):
+        parent_activities = [
+            Activity(
+                id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+                definition=course.CourseActivityDefinition(event)
+            ),
+        ]
+        parent = settings.OPENEDX_PLATFORM_URI + ':18010/container/' + event['context']['parent']['usage_key']
+        #parent = event['context']['parent']['usage_key'] #FOR TEST
+        parent_activities.append(
+            Activity(
+                id=parent,
+                definition=block.BlockAssessmentDefinition(event['context']['parent'])
+            ),
+        )
+
+        return ContextActivities(
+            parent=ActivityList(parent_activities)
         )
 
 

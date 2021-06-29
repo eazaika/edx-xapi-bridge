@@ -3,7 +3,7 @@
 import logging
 
 from xapi_bridge import exceptions, settings
-from xapi_bridge.statements import base, course, navigation, problem, video
+from xapi_bridge.statements import base, course, problem, video, vertical_block, attachment
 
 
 logger = logging.getLogger(__name__)
@@ -14,47 +14,41 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     # course enrollment
     'edx.course.enrollment.activated': course.CourseEnrollmentStatement,
     'edx.course.enrollment.deactivated': course.CourseUnenrollmentStatement,
+    'edx.course.completed': course.CourseCompletionStatement,
+    'edx.course.expell': course.CourseExpellStatement,
 
     # course completion
-    'edx.certificate.created': course.CourseCompletionStatement,
+    #'edx.certificate.created': course.CourseCompletionStatement,
+
+    # vertical block - composite kim completion
+    'complete_vertical': vertical_block.VerticalBlockCompleteStatement,
 
     # problems
     'problem_check': problem.ProblemCheckStatement,
-    'edx.grades.problem.submitted': problem.ProblemSubmittedStatement,
-    # 'problem_graded': problem.ProblemGradedStatement, # not interesting I think
-    'reset_problem': problem.ProblemResetStatement,
-
-    # navigation
-    'edx.ui.lms.sequence.tab_selected': navigation.NavigationSequenceTabStatement,
-    'seq_goto': navigation.NavigationSequenceTabStatement,
-    'edx.ui.lms.outline.selected': navigation.NavigationSectionSelectionStatement, 
-    'edx.ui.lms.link_clicked': navigation.NavigationLinkStatement, 
+    'edx.attachment': attachment.AttachmentStatement,
 
     # 'edx.drag_and_drop_v2.item.dropped'
 
     # video
-    'ready_video': video.VideoStatement,
-    'load_video': video.VideoStatement,
-    'edx.video.loaded': video.VideoStatement,
+    #'ready_video': video.VideoStatement,
+    #'load_video': video.VideoStatement,
+    #'edx.video.loaded': video.VideoStatement,
 
-    'play_video': video.VideoPlayStatement,
-    'edx.video.played': video.VideoPlayStatement,
+    #'play_video': video.VideoPlayStatement,
+    #'edx.video.played': video.VideoPlayStatement,
 
     'pause_video': video.VideoPauseStatement,
-    'edx.video.paused': video.VideoPauseStatement,
+    #'edx.video.paused': video.VideoPauseStatement,
 
     'stop_video': video.VideoCompleteStatement,
-    'edx.video.stopped': video.VideoCompleteStatement,
+    #'edx.video.stopped': video.VideoCompleteStatement,
 
-    'seek_video': video.VideoSeekStatement,
-    'edx.video.position.changed': video.VideoSeekStatement,
-
-    'show_transcript': video.VideoTranscriptStatement,
-    'hide_transcript': video.VideoTranscriptStatement,
-    'edx.video.transcript.shown': video.VideoTranscriptStatement,
-    'edx.video.transcript.hidden': video.VideoTranscriptStatement,
-    'edx.video.closed_captions.shown': video.VideoTranscriptStatement,
-    'edx.video.closed_captions.hidden': video.VideoTranscriptStatement,
+    #'show_transcript': video.VideoTranscriptStatement,
+    #'hide_transcript': video.VideoTranscriptStatement,
+    #'edx.video.transcript.shown': video.VideoTranscriptStatement,
+    #'edx.video.transcript.hidden': video.VideoTranscriptStatement,
+    #'edx.video.closed_captions.shown': video.VideoTranscriptStatement,
+    #'edx.video.closed_captions.hidden': video.VideoTranscriptStatement,
 }
 
 
