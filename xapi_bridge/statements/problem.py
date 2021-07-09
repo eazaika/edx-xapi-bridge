@@ -3,6 +3,7 @@
 
 
 import json
+import re
 
 from tincan import Activity, ActivityDefinition, ActivityList, LanguageMap, Result, Verb, ContextActivities
 
@@ -27,7 +28,8 @@ class ProblemStatement(block.BaseCoursewareBlockStatement):
         try:
             event_data = self.get_event_data(event)
             submission = event_data['submission'][event_data['submission'].keys()[0]]
-            question = submission['question'].replace('\"', '')
+            question = submission['question'].replace('\"', '').replace('\\', '')
+            question = re.sub(r'\(\$(\w+)\)', r'<\1>', question)
         except KeyError:
             question = event['context']['question']
 
@@ -66,11 +68,22 @@ class ProblemCheckStatement(ProblemStatement):
         # for now we are going to assume one submission
         # TODO: when is that not true? is it ever not true? What problem types?
         try:
-            data = event_data['submission'][event_data['submission'].keys()[0]]
-            answer = data['answer']
-            log.error('TYPE {}'.format(type(answer)))
-            if type(answer) is not unicode:
+            data = event_data['submission']
+            answer = []
+            for key in data:
+                log.error('key {} - {}'.format(key, data[key]))
+                trash = data[key]['answer']
+                log.error(trash)
+                if type(trash) is not unicode:
+                    for i in trash:
+                        p = re.sub(r"(\n.*)", r'', i)
+                        answer.append(p)
+                else:
+                    answer.append(trash)
+            if len(answer) > 1:
                 answer = ', '.join("<%s>" % item for item in answer)
+            else:
+                answer = ''.join(answer[0])
             answer = answer.replace('\"', '').strip() #.replace('\\\\', '')
         except:
             answer = event['context']['answer'].strip() #.replace('\\\\', '')
@@ -85,7 +98,7 @@ class ProblemCheckStatement(ProblemStatement):
                 'raw': event_data['grade'],
                 'min': 0,
                 'max': event_data['max_grade'],
-                'scaled': float(event_data['grade'] / event_data['max_grade'])
+                'scaled': float(event_data['grade']) / float(event_data['max_grade'])
             },
             success=success,
             # TODO: to determine completion would need to know max allowed attempts?
