@@ -73,11 +73,11 @@ class QueueManager:
                     lrs_success = True
                     self.publish_retries = 0  # reset retries
                     self.total_published_successfully += len(statements)
-                    logger.debug("{} statements published successfully".format(self.total_published_successfully))
+                    logger.error("{} statements published successfully".format(self.total_published_successfully))
                     if getattr(settings, 'TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK', 0) > 0:
                         benchmark = settings.TEST_LOAD_SUCCESSFUL_STATEMENTS_BENCHMARK
                         if self.total_published_successfully >= benchmark:
-                            logger.debug("published {} or more statements at {}".format(benchmark, datetime.now()))
+                            logger.error("published {} or more statements at {}".format(benchmark, datetime.now()))
                 except exceptions.XAPIBridgeLRSConnectionError as e:
                     # if it was an auth problem, fail
                     # if it was a connection problem, retry
@@ -178,22 +178,22 @@ class TailHandler(ProcessEvent):
 
 def watch(watch_file):
     """Watch the given file for changes."""
-    logger.info('Starting watch')
+    logger.error('Starting watch')
     wm = WatchManager()
 
     try:
         with TailHandler(filename=watch_file) as th:
-            logger.debug('adding pyinotify watcher/notifier')
+            logger.error('adding pyinotify watcher/notifier')
             notifier = Notifier(wm, th, read_freq=settings.NOTIFIER_READ_FREQ, timeout=settings.NOTIFIER_POLL_TIMEOUT)
             wm.add_watch(watch_file, TailHandler.MASK)
             notifier.loop()
     except NotifierLostINodeException:
         # end and restart watch
-        logger.info("stopping notifier and restarting watch")
+        logger.error("stopping notifier and restarting watch")
         notifier.stop()  # close inotify instance
         watch(watch_file)
     finally:
-        logger.info('Exiting watch')
+        logger.error('Exiting watch')
 
 
 def signal_terminate_handler(signum, frame):
@@ -238,12 +238,11 @@ if __name__ == '__main__':
     lrs = client.lrs
     resp = lrs.about()
     if resp.success:
-        logger.info('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
-        logger.debug(resp.data)
+        logger.error('Successfully connected to remote LRS at {}. Described by {}'.format(settings.LRS_ENDPOINT, resp.data))
     else:
         e = exceptions.XAPIBridgeLRSConnectionError(resp)
         e.err_fail()
 
     log_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-    logger.debug('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
+    logger.error('Watching file {}, starting time {}'.format(log_path, str(datetime.now())))
     watch(log_path)
