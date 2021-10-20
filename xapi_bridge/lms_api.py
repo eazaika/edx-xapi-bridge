@@ -8,6 +8,11 @@ from slumber.exceptions import SlumberBaseException
 
 from edx_rest_api_client.client import EdxRestApiClient
 from edx_rest_api_client.exceptions import HttpClientError
+import os
+os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(
+    '/etc/ssl/certs/',
+    'ca-certificates.crt'
+)
 
 from xapi_bridge import constants, exceptions, settings
 
