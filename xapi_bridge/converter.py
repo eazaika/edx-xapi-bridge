@@ -37,9 +37,8 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     #'play_video': video.VideoPlayStatement,
     #'edx.video.played': video.VideoPlayStatement,
 
-    'pause_video': video.VideoPauseStatement,
-    #'edx.video.paused': video.VideoPauseStatement,
-
+    'pause_video': video.VideoStatement,
+    'video_check': video.VideoCheckStatement,
     'stop_video': video.VideoCompleteStatement,
     #'edx.video.stopped': video.VideoCompleteStatement,
 
@@ -60,6 +59,14 @@ def to_xapi(evt):
 
     if event_type in settings.IGNORED_EVENT_TYPES:
         return  # deliberately ignored event
+
+    # filter video_check from problem_check
+    event_source = evt['event_source']
+    if event_type == 'problem_check' and event_source == 'server':
+        event_data = evt['event']
+        data = event_data['answers'][event_data['answers'].keys()[0]]
+        if 'watch_times' in data:
+            event_type = 'video_check'
 
     try:
         statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[event_type]

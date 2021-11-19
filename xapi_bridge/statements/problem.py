@@ -11,6 +11,8 @@ import block
 import course
 from xapi_bridge import constants, exceptions, settings
 
+import logging
+log = logging.getLogger(__name__)
 
 
 class ProblemStatement(block.BaseCoursewareBlockStatement):
@@ -71,9 +73,7 @@ class ProblemCheckStatement(ProblemStatement):
             data = event_data['submission']
             answer = []
             for key in data:
-                log.error('key {} - {}'.format(key, data[key]))
                 trash = data[key]['answer']
-                log.error(trash)
                 if type(trash) is not unicode:
                     for i in trash:
                         p = re.sub(r"(\n.*)", r'', i)
@@ -86,6 +86,7 @@ class ProblemCheckStatement(ProblemStatement):
                 answer = ''.join(answer[0])
             answer = answer.replace('\"', '').strip() #.replace('\\\\', '')
         except:
+            log.error(event)
             answer = event['context']['answer'].strip() #.replace('\\\\', '')
 
         try:

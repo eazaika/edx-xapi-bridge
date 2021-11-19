@@ -9,6 +9,8 @@ import block
 import course
 from xapi_bridge import constants, exceptions, settings
 
+import logging
+log = logging.getLogger(__name__)
 
 
 class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
@@ -33,23 +35,30 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ASSESSMENT_MODULE,
-                #name=LanguageMap({'ru-RU': question}),
+                name=LanguageMap({'ru-RU': question}),
                 description=LanguageMap({'ru-RU': display_name}),
             ),
         )
 
     def get_result(self, event):
 
-        return Result(
-            score={
-                'raw': event['context']['module']['progress'][0],
-                'min': 0,
-                'max': event['context']['module']['progress'][1],
-                'scaled': float(event['context']['module']['progress'][0] / event['context']['module']['progress'][1])
-            },
-            success=event['context']['module']['done'],
-            completion = True
-        )
+        log.error(event)
+        try:
+            return Result(
+                score={
+                    'raw': event['context']['module']['progress'][0],
+                    'min': 0,
+                    'max': event['context']['module']['progress'][1],
+                    'scaled': float(event['context']['module']['progress'][0] / event['context']['module']['progress'][1])
+                },
+                success=event['context']['module']['done'],
+                completion = True
+            )
+        except:
+            return Result(
+                success = True,
+                completion = True,
+            )
 
     def get_context_activities(self, event):
         parent_activities = [
