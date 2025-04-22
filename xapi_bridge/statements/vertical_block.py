@@ -35,7 +35,7 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
                 type=constants.XAPI_ASSESSMENT_MODULE,
-                name=LanguageMap({'ru-RU': question}),
+                #name=LanguageMap({'ru-RU': question}),
                 description=LanguageMap({'ru-RU': display_name}),
             ),
         )

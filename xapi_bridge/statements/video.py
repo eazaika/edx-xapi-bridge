@@ -40,7 +40,7 @@ VIDEO_STATE_CHANGE_VERB_MAP = {
     },
     'stop_video': {
         'id': constants.XAPI_VERB_COMPLETED,
-        'display': LanguageMap({'en-US': 'completed'})
+        'display': LanguageMap({'en-US': 'completed', 'ru-RU': 'видео просмотрено'})
     },
     'show_transcript': {
         'id': constants.XAPI_VERB_INTERACTED,

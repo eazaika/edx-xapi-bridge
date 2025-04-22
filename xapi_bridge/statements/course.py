@@ -7,8 +7,6 @@ from tincan import Activity, ActivityDefinition, LanguageMap, Verb, Agent, Agent
 import base
 from xapi_bridge import lms_api, constants, settings
 
-
-
 class CourseActivityDefinition(ActivityDefinition):
     enrollment_api_client = lms_api.enrollment_api_client
 
@@ -27,7 +25,6 @@ class CourseActivityDefinition(ActivityDefinition):
         if unti:
             kwargs.update({'extensions': {ext_url: course_info['2035_id']}})
 
-        logger.error('CourseActivityDefinition {}'.format(kwargs))
         super(CourseActivityDefinition, self).__init__(*args, **kwargs)
 
 

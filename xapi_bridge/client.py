@@ -42,7 +42,7 @@ class XAPIBridgeLRSPublisher(object):
 
     def _get_response_erroring_statement(self, lrs_response):
         req_data = lrs_response.data
-        return self.lrs_backend.parse_error_response_for_bad_statement(req_data) 
+        return self.lrs_backend.parse_error_response_for_bad_statement(req_data)
 
     # RemoteLRS will use auth if passed otherwise BasicAuth with un/pw
     def publish_statements(self, statements):
