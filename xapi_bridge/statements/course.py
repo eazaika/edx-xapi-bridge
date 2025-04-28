@@ -1,94 +1,121 @@
-# -*- coding: utf-8 -*-
-"""xAPI Statements and Activities for verbs on courses as a whole."""
+"""
+xAPI Statements для событий курса в Open edX: записи, завершения, отчисления.
 
+Соответствует профилю курсовой активности ADL xAPI:
+https://w3id.org/xapi/cmi5/v1.0.3/
 
-from tincan import Activity, ActivityDefinition, LanguageMap, Verb, Agent, AgentAccount, Result
+Мигрировано на Python 3.10 с:
+- Аннотациями типов
+- Современным синтаксисом super()
+- F-строками
+- Безопасным доступом к данным
+"""
 
-import base
-from xapi_bridge import lms_api, constants, settings
+from typing import Dict, Any, Optional
+
+from tincan import Activity, ActivityDefinition, LanguageMap, Verb, Result
+
+from . import base
+from xapi_bridge import constants, lms_api, settings
+
 
 class CourseActivityDefinition(ActivityDefinition):
+    """Определение активности курса с расширениями для UNTI."""
+
     enrollment_api_client = lms_api.enrollment_api_client
 
-    def __init__(self, event, *args, **kwargs):
-        # TODO get course name, probably from enrollment API
-        # in course_details['course_name']
-        unti = settings.UNTI_XAPI
-        course_info = self.enrollment_api_client.get_course_info(event['context']['course_id'], unti=unti)
-        ext_url = u'{}/rall_id'.format(settings.UNTI_XAPI_EXT_URL)
+    def __init__(self, event: Dict[str, Any], *args, **kwargs):
+        """
+        Инициализирует метаданные курса.
+
+        Args:
+            event: Событие трекинга с контекстом курса
+        """
+        course_info = self.enrollment_api_client.get_course_info(
+            event['context']['course_id'],
+            unti=settings.UNTI_XAPI
+        )
 
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_COURSE,
-            'name': LanguageMap({'ru-RU': course_info['name']}),
-            'description': LanguageMap({'ru-RU': course_info['description']})
+            'name': LanguageMap({'ru-RU': course_info.get('name', 'Курс')}),
+            'description': LanguageMap({'ru-RU': course_info.get('description', '')})
         })
-        if unti:
-            kwargs.update({'extensions': {ext_url: course_info['2035_id']}})
 
-        super(CourseActivityDefinition, self).__init__(*args, **kwargs)
+        # Добавление расширений для UNTI
+        if settings.UNTI_XAPI:
+            self._add_unti_extensions(course_info, kwargs)
+
+        super().__init__(*args, **kwargs)
+
+    def _add_unti_extensions(self, course_info: Dict[str, Any], kwargs: Dict[str, Any]):
+        """Добавляет специфичные для UNTI расширения."""
+        ext_url = f"{settings.UNTI_XAPI_EXT_URL}/rall_id"
+        if '2035_id' in course_info:
+            kwargs.setdefault('extensions', {})[ext_url] = course_info['2035_id']
 
 
 class CourseStatement(base.LMSTrackingLogStatement):
-    """ Statement base for course enrollment and unenrollment events."""
+    """Базовый класс для событий, связанных с курсом."""
 
-
-    def get_object(self, event):
+    def get_object(self, event: Dict[str, Any]) -> Activity:
         """
-        Get object for the statement.
+        Создает объект Activity для курса.
+
+        Args:
+            event: Событие с контекстом курса
+
+        Returns:
+            Activity: xAPI активность курса
         """
         return Activity(
-            id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+            id=f"{settings.OPENEDX_PLATFORM_URI}/courses/{event['context']['course_id']}",
             definition=CourseActivityDefinition(event)
         )
 
 
 class CourseEnrollmentStatement(CourseStatement):
-    """Statement for course enrollment."""
+    """Обрабатывает события записи на курс."""
 
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_REGISTERED,
-            display=LanguageMap({'en-US': 'registered', 'ru-RU': u'записался'}),
+            display=LanguageMap({'ru-RU': 'записался', 'en-US': 'registered'}),
         )
 
 
 class CourseUnenrollmentStatement(CourseStatement):
-    """Statement for course unenrollment."""
+    """Обрабатывает события добровольного отчисления."""
 
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_EXITED,
-            display=LanguageMap({'en-US': 'exited', 'ru-RU': u'отчислился'}),
+            display=LanguageMap({'ru-RU': 'отчислился', 'en-US': 'exited'}),
         )
 
 
 class CourseExpellStatement(CourseStatement):
-    """Statement for course unenrollment."""
+    """Обрабатывает события принудительного отчисления."""
 
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_FAILED,
-            display=LanguageMap({'en-US': 'failed', 'ru-RU': u'отчислен'}),
+            display=LanguageMap({'ru-RU': 'отчислен', 'en-US': 'failed'}),
         )
 
 
 class CourseCompletionStatement(CourseStatement):
-    """Statement for student completion of a course."""
+    """Обрабатывает события успешного завершения курса."""
 
-    # event indicates a course has been completed by virtue of a certificate being received
-    # eventually this will not be the marker of course completion
-
-    # TODO: what happens when a course is un-completed? (e.g., certificate is revoked or other)
-
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_COMPLETED,
-            display=LanguageMap({'en-US': 'completed', 'ru-RU': u'закончил курс'}),
+            display=LanguageMap({'ru-RU': 'закончил курс', 'en-US': 'completed'}),
         )
 
-    def get_result(self, event):
+    def get_result(self, event: Dict[str, Any]) -> Result:
         event_data = self.get_event_data(event)
         return Result(
             success=event_data.get('completion', True),
-            completion=True,
-    )
+            completion=True
+        )
