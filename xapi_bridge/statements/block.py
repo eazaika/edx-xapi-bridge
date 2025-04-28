@@ -1,42 +1,69 @@
-# -*- coding: utf-8 -*-
-"""Statement base classes for courseware blocks."""
+"""
+Определения активностей для курсовых блоков Open edX.
 
+Мигрировано на Python 3.10 с:
+- Аннотациями типов
+- Современными super() вызовами
+- F-строками
+- Обработкой Unicode по умолчанию
+"""
 
-from tincan import Activity, ActivityDefinition, ActivityList, Context, ContextActivities, LanguageMap
+from typing import Dict, Any, Optional
 
-import base
-import course
+from tincan import (
+    Activity, ActivityDefinition, ActivityList,
+    Context, ContextActivities, LanguageMap
+)
+
+from . import base, course
 from xapi_bridge import constants, settings
 
 
 class BlockActivityDefinition(ActivityDefinition):
-    def __init__(self, event, *args, **kwargs):
+    """Определение активности для курсового блока."""
+    
+    def __init__(self, event: Dict[str, Any], *args, **kwargs):
+        """
+        Инициализирует определение активности блока.
+
+        Args:
+            event: Событие трекинга с данными о блоке
+        """
         try:
             display_name = event['context']['module']['display_name']
         except KeyError:
-            # not all events will have in the context
             display_name = "Составной КИМ"
+
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_MODULE,
             'name': LanguageMap({'ru-RU': display_name}),
-            'description': LanguageMap({'en-US': 'A course vertical section in a course delivered through Open edX'})
+            'description': LanguageMap({'en-US': 'Course vertical section in Open edX'})
         })
-        super(BlockActivityDefinition, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # Современный вызов super
 
 
 class BlockAssessmentDefinition(ActivityDefinition):
-    def __init__(self, event, *args, **kwargs):
+    """Определение активности для оценочного блока."""
+    
+    def __init__(self, event: Dict[str, Any], *args, **kwargs):
+        """
+        Инициализирует определение оценочного блока.
+
+        Args:
+            event: Данные события с информацией о блоке
+        """
         try:
             display_name = event['display_name']
         except KeyError:
-            # not all events will have in the context
             display_name = "Course Block"
 
-        if event['usage_key'].find('vertical+block') > 0:
+        # Определение типа блока по usage_key
+        usage_key = event.get('usage_key', '')
+        if 'vertical+block' in usage_key:
             block_type = 'vertical block'
-        elif event['usage_key'].find('sequential+block') > 0:
+        elif 'sequential+block' in usage_key:
             block_type = 'sequential block'
-        elif event['usage_key'].find('chapter+block') > 0:
+        elif 'chapter+block' in usage_key:
             block_type = 'chapter block'
         else:
             block_type = 'undefined'
@@ -47,40 +74,63 @@ class BlockAssessmentDefinition(ActivityDefinition):
             'description': LanguageMap({'en-US': block_type})
         })
 
-        try:
-            ext_url = u'{}/question_amount'.format(settings.UNTI_XAPI_EXT_URL)
-            kwargs.update({
-                'extensions': { ext_url: event['childrens'] }
-            })
-        except:
-            pass
+        # Добавление расширений для UNTI
+        if settings.UNTI_XAPI:
+            self._add_unti_extensions(event, kwargs)
 
-        super(BlockAssessmentDefinition, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+    def _add_unti_extensions(self, event: Dict[str, Any], kwargs: Dict[str, Any]):
+        """Добавляет расширения для интеграции с UNTI."""
+        try:
+            ext_url = f'{settings.UNTI_XAPI_EXT_URL}/question_amount'
+            kwargs.setdefault('extensions', {})[ext_url] = event['childrens']
+        except KeyError:
+            pass
 
 
 class BaseCoursewareBlockStatement(base.LMSTrackingLogStatement):
-    """Base for any interaction with a courseware block."""
+    """Базовый класс для взаимодействий с курсовыми блоками."""
+    
+    def _get_activity_id(self, event: Dict[str, Any]) -> str:
+        """
+        Генерирует IRI идентификатор активности.
 
-    def _get_activity_id(self, event):
-        format_str = constants.BLOCK_OBJECT_ID_FORMAT
-        platform_str = settings.OPENEDX_PLATFORM_URI
-        block_id = event['context']['module']['usage_key']
-        return format_str.format(platform=platform_str, block_usage_key=block_id)
+        Args:
+            event: Событие с контекстом блока
 
-    def get_context_activities(self, event):
+        Returns:
+            Строка с IRI идентификатором
+        """
+        return constants.BLOCK_OBJECT_ID_FORMAT.format(
+            platform=settings.OPENEDX_PLATFORM_URI,
+            block_usage_key=event['context']['module']['usage_key']
+        )
+
+    def get_context_activities(self, event: Dict[str, Any]) -> ContextActivities:
+        """
+        Строит иерархию родительских активностей.
+
+        Args:
+            event: Событие с данными о положении блока
+
+        Returns:
+            ContextActivities: Контекстные активности
+        """
         parent_activities = [
             Activity(
-                id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+                id=f"{settings.OPENEDX_PLATFORM_URI}/courses/{event['context']['course_id']}",
                 definition=course.CourseActivityDefinition(event)
-            ),
+            )
         ]
-        # browser source events don't know as much about their context
+
+        # Добавление информации о родительском блоке для серверных событий
         if event['event_source'].lower() == 'server':
             parent_activities.append(
                 Activity(
                     id=event['referer'],
                     definition=BlockActivityDefinition(event)
-                ),
+                )
             )
 
         other_activities = [
@@ -95,11 +145,16 @@ class BaseCoursewareBlockStatement(base.LMSTrackingLogStatement):
             other=ActivityList(other_activities)
         )
 
-    def get_context(self, event):
-        """Get Context for the statement.
-
-        For problems this can include the course and the block id.
+    def get_context(self, event: Dict[str, Any]) -> Context:
         """
-        context = super(BaseCoursewareBlockStatement, self).get_context(event)
-        context.context_activities=self.get_context_activities(event)
+        Создает контекст выполнения для высказывания.
+
+        Args:
+            event: Исходное событие трекинга
+
+        Returns:
+            Context: Наполненный контекст xAPI
+        """
+        context = super().get_context(event)
+        context.context_activities = self.get_context_activities(event)
         return context
