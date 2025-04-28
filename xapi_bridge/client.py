@@ -1,75 +1,101 @@
-"""xAPI Client to send payload data."""
+"""
+Клиент для отправки xAPI-высказываний в LRS.
+
+Мигрировано на Python 3.10 с:
+- Аннотациями типов
+- Современными библиотеками
+- Улучшенной обработкой ошибок
+"""
 
 import importlib
 import json
 import logging
 import socket
+from typing import Any, Optional
 
-from tincan.remote_lrs import RemoteLRS
+from tincan import RemoteLRS, StatementList
+from tincan.remote_lrs import RemoteLRSResponse
 
-from xapi_bridge import exceptions
-from xapi_bridge import settings
-
-
-kw = {
-    'endpoint': settings.LRS_ENDPOINT,
-}
-if settings.LRS_BASICAUTH_HASH:
-    kw['auth'] = "Basic {}".format(settings.LRS_BASICAUTH_HASH)
-else:
-    kw['username'] = settings.LRS_USERNAME
-    kw['password'] = settings.LRS_PASSWORD
+from xapi_bridge import exceptions, settings
+from xapi_bridge.lrs_backends.learninglocker import LRSBackend
 
 
 logger = logging.getLogger(__name__)
 
-lrs = RemoteLRS(**kw)
 
+class XAPIBridgeLRSPublisher:
+    """Обертка для отправки xAPI-высказываний в LRS."""
 
-class XAPIBridgeLRSPublisher(object):
-    """Publishing wrapper around tincan.remote_lrs.RemoteLRS.
-    Raise custom error types when LRS publishing activity not successful.
-    """
+    def __init__(self):
+        self.lrs = self._configure_lrs()
+        self.backend = LRSBackend()
 
-    @property
-    def lrs_backend(self):
-        try:
-            module = importlib.import_module('xapi_bridge.lrs_backends.'+settings.LRS_BACKEND_TYPE)
-            class_ = getattr(module, 'LRSBackend')
-            return class_()
-        except (AttributeError, ImportError):
-            raise ImproperlyConfigured("No LRS backend class matching specified LRS_BACKEND_TYPE in settings or unspecifed LRS_BACKEND_TYPE.")
+    def _configure_lrs(self) -> RemoteLRS:
+        """Конфигурация подключения к LRS."""
+        config = {
+            'endpoint': settings.LRS_ENDPOINT,
+            'version': "1.0.3"
+        }
 
-    def _get_response_erroring_statement(self, lrs_response):
-        req_data = lrs_response.data
-        return self.lrs_backend.parse_error_response_for_bad_statement(req_data)
-
-    # RemoteLRS will use auth if passed otherwise BasicAuth with un/pw
-    def publish_statements(self, statements):
-        """
-        params:
-        statements tincan.statement_list.StatementList
-        """
-        try:
-            lrs_resp = lrs.save_statements(statements)
-        except (socket.gaierror, ) as e:  # can't connect at all, no response
-            raise exceptions.XAPIBridgeLRSConnectionError(queue=statements)
-
-        if lrs_resp.success:
-            for st in lrs_resp.content:
-                logger.info("Succeeded sending statement {}".format(st.to_json()))
-            return lrs_resp
+        if settings.LRS_BASICAUTH_HASH:
+            config['auth'] = f"Basic {settings.LRS_BASICAUTH_HASH}"
         else:
-            resp_dict = json.loads(lrs_resp.data)
+            config.update({
+                'username': settings.LRS_USERNAME,
+                'password': settings.LRS_PASSWORD
+            })
 
-            # error message from LRS
-            if self.lrs_backend.response_has_errors(lrs_resp.data):
-                # authorization failure
-                if self.lrs_backend.request_unauthorised(lrs_resp.data):
-                    raise exceptions.XAPIBridgeLRSConnectionError(lrs_resp)
-                elif self.lrs_backend.response_has_storage_errors(lrs_resp.data):
-                    badstmt = self._get_response_erroring_statement(lrs_resp)
-                    raise exceptions.XAPIBridgeStatementStorageError(statement=statements[badstmt], message=resp_dict.get('message',''))
+        return RemoteLRS(**config)
+
+    def publish_statements(self, statements: StatementList) -> RemoteLRSResponse:
+        """
+        Отправка пакета высказываний в LRS.
+        
+        Args:
+            statements: Список xAPI-высказываний
+            
+        Returns:
+            Ответ от LRS
+            
+        Raises:
+            XAPIBridgeLRSConnectionError: Ошибка подключения
+            XAPIBridgeStatementStorageError: Ошибка сохранения
+        """
+        try:
+            response = self.lrs.save_statements(statements)
+            self._handle_response(response, statements)
+            return response
+        except (socket.gaierror, ConnectionRefusedError) as e:
+            error_msg = f"Ошибка подключения к LRS: {str(e)}"
+            logger.error(error_msg)
+            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
+
+    def _handle_response(self, response: RemoteLRSResponse, statements: StatementList) -> None:
+        """Обработка ответа от LRS."""
+        if response.success:
+            logger.info(f"Успешно отправлено {len(statements)} высказываний")
+            return
+
+        try:
+            response_data = json.loads(response.data)
+        except json.JSONDecodeError:
+            response_data = {}
+
+        if self.backend.request_unauthorised(response_data):
+            error_msg = "Ошибка авторизации в LRS"
+            logger.error(error_msg)
+            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg)
+
+        if self.backend.response_has_storage_errors(response_data):
+            bad_index = self.backend.parse_error_response_for_bad_statement(response_data)
+            bad_statement = statements[bad_index] if bad_index is not None else None
+            error_msg = f"Ошибка сохранения высказывания: {response_data.get('message', '')}"
+            logger.error(error_msg)
+            raise exceptions.XAPIBridgeStatementStorageError(
+                statement=bad_statement,
+                message=error_msg
+            )
 
 
+# Инициализация клиента по умолчанию
 lrs_publisher = XAPIBridgeLRSPublisher()
