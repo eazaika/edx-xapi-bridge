@@ -29,7 +29,7 @@ if settings.HTTP_PUBLISH_STATUS:
     from xapi_bridge.server import httpd
 
 
-logger = logging.getLogger('edX-xapi-bridge')
+logger = logging.getLogger('edX-xapi-bridge main')
 
 
 class QueueManager:
