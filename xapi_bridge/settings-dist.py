@@ -5,7 +5,7 @@
 """
 
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
 
 # =============================================
 #  Настройки подключения к LRS
@@ -18,6 +18,10 @@ LRS_ENDPOINT: str = 'https://lrs.example.org/xapi/'
 LRS_USERNAME: Optional[str] = 'your_username'
 LRS_PASSWORD: Optional[str] = 'your_password'
 LRS_BASICAUTH_HASH: Optional[str] = None  # Пример: 'base64_encoded_credentials'
+
+# Authority sign for every LRS-data request
+ORG_NAME = "test_org"
+ORG_EMAIL = "test@test.com"
 
 # Тип бэкенда LRS (например: 'learninglocker')
 LRS_BACKEND_TYPE: str = 'learninglocker'
@@ -116,3 +120,4 @@ def get_env_setting(setting: str, default: Any = None) -> Any:
 
 # Пример использования:
 # LRS_ENDPOINT = get_env_setting('LRS_ENDPOINT', 'https://backup-lrs.example.org/xapi/')
+

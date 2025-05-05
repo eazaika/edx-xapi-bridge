@@ -1,11 +1,6 @@
 """
 Пользовательские исключения для xAPI-бриджа.
 
-Мигрировано на Python 3.10 с:
-- Современным синтаксисом
-- Аннотациями типов
-- Улучшенной интеграцией с Sentry
-- Четкой иерархией классов
 """
 
 import logging
@@ -21,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class XAPIBridgeBaseException(Exception):
     """Базовое исключение для всех ошибок xAPI-бриджа."""
-    
+
     def __init__(self, message: str, context: Optional[Dict] = None):
         """
         Args:
@@ -54,7 +49,7 @@ class XAPIBridgeConfigError(XAPIBridgeBaseException):
 
 class XAPIBridgeConnectionError(XAPIBridgeBaseException):
     """Ошибка подключения к внешним сервисам."""
-    
+
     def __init__(self, service_name: str, **kwargs):
         message = f"Ошибка подключения к {service_name}"
         super().__init__(message, kwargs)
@@ -78,38 +73,46 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
 class XAPIBridgeDataError(XAPIBridgeBaseException):
     """Ошибка обработки данных."""
 
+class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
+    """Exception class for no LMS user found."""
+
+    def __init__(self, raw_event: Dict, username: str):
+        super().__init__(
+            message=f'Пользователь {username} не найден',
+            context={'raw_event': raw_event, 'username': username}
+        )
 
 class XAPIBridgeStatementError(XAPIBridgeDataError):
     """Ошибка преобразования или валидации xAPI-высказывания."""
-    
+
     def __init__(self, raw_event: Dict, validation_errors: Dict):
         context = {
             'raw_event': raw_event,
             'validation_errors': validation_errors
         }
         super().__init__(
-            message="Некорректное xAPI-высказывание",
+            message=f"Некорректное xAPI-высказывание: {validation_errors}",
             context=context
         )
 
 
-class XAPIBridgeTransformationError(XAPIBridgeDataError):
+class XAPIBridgeStatementConversionError(XAPIBridgeDataError):
     """Ошибка преобразования данных трекинга."""
-    
-    def __init__(self, event_type: str, event_data: Dict):
+
+    def __init__(self, event_type: str, event_data: Dict, reason: str):
         context = {
             'event_type': event_type,
             'event_data': event_data
         }
         super().__init__(
-            message=f"Ошибка преобразования события: {event_type}",
+            message=f"Ошибка преобразования события: {event_type} по причине {reason}",
             context=context
         )
 
 
 class XAPIBridgeSkippedConversion(XAPIBridgeBaseException):
     """Событие было пропущено согласно бизнес-логике."""
-    
+
     def __init__(self, event_type: str, reason: str):
         super().__init__(
             message=f"Событие {event_type} пропущено: {reason}",
@@ -119,7 +122,7 @@ class XAPIBridgeSkippedConversion(XAPIBridgeBaseException):
 
 class XAPIBridgeCriticalError(XAPIBridgeBaseException):
     """Критическая ошибка, требующая остановки приложения."""
-    
+
     def terminate(self) -> None:
         """Безопасное завершение работы приложения."""
         self.log_error()

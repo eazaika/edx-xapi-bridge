@@ -1,10 +1,6 @@
 """
 HTTP-сервер для проверки работоспособности сервиса.
 
-Мигрировано на Python 3.10 с:
-- Современными импортами модулей
-- Аннотациями типов
-- Поддержкой Unicode
 """
 
 import http.server
@@ -16,11 +12,11 @@ from xapi_bridge import settings
 
 class StatusOKRequestHandler(http.server.SimpleHTTPRequestHandler):
     """Обработчик запросов для проверки статуса сервиса."""
-    
+
     def do_GET(self) -> None:
         """
         Обрабатывает GET-запросы, всегда возвращая статус 200 OK.
-        
+
         Поддерживает все пути запросов для упрощения мониторинга.
         """
         self.send_response(200, 'OK')
@@ -37,7 +33,7 @@ def run_server() -> Tuple[str, int]:
     """Запускает HTTP-сервер для мониторинга."""
     host = getattr(settings, 'HTTP_PUBLISH_IP', '0.0.0.0')
     port = getattr(settings, 'HTTP_PUBLISH_PORT', 9090)
-    
+
     with socketserver.TCPServer((host, port), StatusOKRequestHandler) as httpd:
         print(f"Status server running on {host}:{port}")
         httpd.serve_forever()
