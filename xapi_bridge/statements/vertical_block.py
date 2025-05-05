@@ -4,11 +4,6 @@ xAPI Statements для составных блоков (vertical blocks) в Open
 Соответствует профилю xAPI для составных учебных модулей:
 https://xapi.com/profiles/composite-modules/
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современным синтаксисом super()
-- F-строками
-- Улучшенной обработкой ошибок
 """
 
 import logging
@@ -78,7 +73,7 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
         try:
             progress_data = event['context']['module']['progress']
             scaled = float(progress_data[0]) / float(progress_data[1])
-            
+
             return Result(
                 score={
                     'raw': progress_data[0],

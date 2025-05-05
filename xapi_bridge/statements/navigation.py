@@ -4,11 +4,6 @@ xAPI Statements для событий навигации в Open edX.
 Соответствует профилю навигации ADL xAPI:
 https://w3id.org/xapi/navigation/v1.0.0/
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современным синтаксисом super()
-- F-строками
-- Безопасным доступом к данным
 """
 
 from typing import Dict, Any, Optional

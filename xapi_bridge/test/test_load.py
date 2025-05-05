@@ -1,11 +1,6 @@
 """
 Утилита для нагрузочного тестирования xAPI-бриджа.
 
-Мигрировано на Python 3.10 с:
-- Современным синтаксисом
-- Аннотациями типов
-- Улучшенной обработкой ошибок
-- Логированием прогресса
 """
 
 import argparse
@@ -26,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def generate_test_data(src_file: Path, output_file: Path, iterations: int, delay: float) -> None:
     """
     Генерирует тестовые данные для нагрузочного тестирования.
-    
+
     Args:
         src_file: Путь к файлу с исходными событиями
         output_file: Путь к файлу для записи тестовых данных
@@ -36,14 +31,14 @@ def generate_test_data(src_file: Path, output_file: Path, iterations: int, delay
     try:
         with src_file.open('r', encoding='utf-8') as src:
             base_data = src.read()
-            
+
         with output_file.open('a', encoding='utf-8') as log:
             for i in range(1, iterations + 1):
                 log.write(f"{base_data}\n")
                 log.flush()
                 logger.info(f"Итерация {i}/{iterations} записана")
                 time.sleep(delay)
-                
+
     except IOError as e:
         logger.error(f"Ошибка работы с файлами: {str(e)}")
         sys.exit(1)
@@ -72,20 +67,20 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Основная функция выполнения."""
     args = parse_args()
-    
+
     logger.info("Старт генерации тестовой нагрузки")
     logger.info(f"Источник: {args.source}")
     logger.info(f"Назначение: {args.output}")
     logger.info(f"Итераций: {settings.TEST_LOAD_TRACKING_TOTAL_LOG_WRITES}")
     logger.info(f"Интервал: {settings.TEST_LOAD_SLEEP_SECS_BETWEEN_WRITES} сек")
-    
+
     generate_test_data(
         src_file=args.source,
         output_file=args.output,
         iterations=settings.TEST_LOAD_TRACKING_TOTAL_LOG_WRITES,
         delay=settings.TEST_LOAD_SLEEP_SECS_BETWEEN_WRITES
     )
-    
+
     logger.info("Генерация тестовых данных завершена успешно")
 
 

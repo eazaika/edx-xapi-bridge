@@ -1,16 +1,14 @@
 # Основные зависимости
 certifi>=2022.12.7       # Актуальные SSL-сертификаты
-edx-rest-api-client>=8.0.0  # Версия для Python 3 (переименован пакет)
-pyinotify>=0.9.6         # Совместим с Python 3.10
+edx-rest-api-client==5.7.1  # Версия для Python 3 (переименован пакет)
+edx-django-utils==5.12.0 # before OPENEDX_TELEMETRY support
+pyinotify>=0.9.6         # Совместим с Python 3.11
 pymemcache>=3.5.0        # Замена python-memcached (Python 3+)
-requests>=2.28.1         # Актуальная версия для Python 3.10
+requests>=2.28.1         # Актуальная версия для Python 3.11
 six>=1.16.0              # Последняя версия для совместимости
 
 # xAPI библиотека (используем официальный форк для Python 3)
-tincan-py3>=0.2.1        # Альтернатива: git+https://github.com/... (Python 3 форк)
-
-# edX dependencies
-Django>=3.2              # Базовый фреймворк (если требуется)
+https://github.com/openedx/TinCanPython/archive/master.zip
 
 # Локальная установка
 -e .

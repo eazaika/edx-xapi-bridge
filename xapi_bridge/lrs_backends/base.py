@@ -1,10 +1,6 @@
 """
 Базовый абстрактный класс для бэкендов xAPI хранилищ.
 
-Мигрировано на Python 3.10 с:
-- Современным объявлением метаклассов
-- Аннотациями типов
-- Улучшенной документацией
 """
 
 from abc import ABC, abstractmethod
@@ -37,7 +33,7 @@ class LRSBackendBase(ABC):
 
         Args:
             response_data: Данные ответа от LRS
-            
+
         Returns:
             True если ответ содержит ошибки
         """
@@ -49,7 +45,7 @@ class LRSBackendBase(ABC):
 
         Args:
             response_data: Данные ответа от LRS
-            
+
         Returns:
             True если есть ошибки сохранения данных
         """

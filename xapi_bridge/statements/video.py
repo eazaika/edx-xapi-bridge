@@ -1,12 +1,6 @@
 """
 xAPI Statements and Activities for video interactions in Open edX.
 
-Conforms to ADL Video xAPI Profile 1.0.2
-Migrated to Python 3.10 with:
-- Modern super() calls
-- Type annotations
-- F-strings
-- Python 3 dict handling
 """
 
 import datetime
@@ -40,10 +34,10 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
     def _get_activity_id(self, event: Dict[str, Any]) -> str:
         """
         Constructs activity ID based on event source.
-        
+
         Args:
             event: Video interaction event data
-            
+
         Returns:
             str: Unique activity ID in IRI format
         """
@@ -62,16 +56,16 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
     def get_object(self, event: Dict[str, Any]) -> Activity:
         """
         Constructs video activity object.
-        
+
         Args:
             event: Tracking log event data
-            
+
         Returns:
             Activity: xAPI video activity
         """
         event_data = self.get_event_data(event)
         duration = event_data.get('duration', 0)
-        
+
         return Activity(
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
@@ -81,6 +75,7 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
                 extensions={
                     constants.XAPI_CONTEXT_VIDEO_LENGTH: jsonify_timedelta(
                         datetime.timedelta(seconds=duration)
+                    )
                 }
             )
         )
@@ -88,13 +83,13 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
     def get_verb(self, event: Dict[str, Any]) -> Verb:
         """
         Maps Open edX video events to xAPI verbs.
-        
+
         Args:
             event: Video interaction event
-            
+
         Returns:
             Verb: xAPI verb object
-            
+
         Raises:
             XAPIBridgeSkippedConversion: For unhandled event types
         """
@@ -103,9 +98,10 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
             verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
         except KeyError as exc:
             raise exceptions.XAPIBridgeSkippedConversion(
+                event_type,
                 f"Unhandled video event: {event_type}"
             ) from exc
-            
+
         return Verb(
             id=verb_props['id'],
             display=verb_props['display']
@@ -116,8 +112,8 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
         event_data = self.get_event_data(event)
         current_time = float('{:.2f}'.format(
             event_data.get('currentTime', event_data.get('current_time', 0))
-        )
-        
+        ))
+
         return Result(
             success=True,
             completion=False,
@@ -142,16 +138,20 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
 
 class VideoCheckStatement(VideoStatement):
     """Handles video progress check events (problem_check)."""
-    
+
     def get_object(self, event: Dict[str, Any]) -> Activity:
         """Constructs activity from problem check data."""
         event_data = self.get_event_data(event)
+        event_type = event['event_type']
         try:
             answer_key = list(event_data['answers'].keys())[0]  # Python 3 dict key handling
             data = json.loads(json.loads(event_data['answers'][answer_key])['answer'])
         except (KeyError, json.JSONDecodeError) as exc:
             logger.error("Invalid video check data: %s", exc)
-            raise exceptions.XAPIBridgeSkippedConversion("Invalid video check format") from exc
+            raise exceptions.XAPIBridgeSkippedConversion(
+                event_type,
+                "Invalid video check format"
+            ) from exc
 
         return Activity(
             id=self._get_activity_id(event),
@@ -181,7 +181,7 @@ class VideoCheckStatement(VideoStatement):
 
 class VideoSeekStatement(VideoStatement):
     """Handles video seeking events."""
-    
+
     def get_result(self, event: Dict[str, Any]) -> Result:
         """Adds seek time extensions."""
         result = super().get_result(event)
@@ -195,7 +195,7 @@ class VideoSeekStatement(VideoStatement):
 
 class VideoCompleteStatement(VideoStatement):
     """Marks video as fully completed."""
-    
+
     def get_result(self, event: Dict[str, Any]) -> Result:
         """Marks completion as True."""
         result = super().get_result(event)
@@ -205,7 +205,7 @@ class VideoCompleteStatement(VideoStatement):
 
 class VideoTranscriptStatement(VideoStatement):
     """Handles transcript/captions interactions."""
-    
+
     def get_result(self, event: Dict[str, Any]) -> Result:
         """Adds CC enabled extension."""
         result = super().get_result(event)

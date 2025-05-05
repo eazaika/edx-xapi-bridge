@@ -1,11 +1,6 @@
 """
 Реализация бэкенда Learning Locker для xAPI.
 
-Мигрировано на Python 3.10 с:
-- Удалением зависимости six
-- Использованием встроенных возможностей Python 3
-- Аннотациями типов
-- Современной обработкой ошибок
 """
 
 import json
@@ -18,7 +13,7 @@ from xapi_bridge import exceptions
 
 class LRSBackend(LRSBackendBase):
     """Реализация взаимодействия с Learning Locker xAPI LRS."""
-    
+
     def parse_error_response_for_bad_statement(self, response_data: str) -> Optional[int]:
         """
         Анализирует ответ LRS для определения индекса некорректного высказывания.
@@ -35,16 +30,16 @@ class LRSBackend(LRSBackendBase):
         try:
             error = json.loads(response_data)
             warnings = error.get('warnings', [])
-            
+
             if not warnings:
                 return None
 
             # Пример сообщения: "Problem in 'statements.0.actor'..."
             problem_msg = warnings[0]
             match = re.search(r"'statements\.(\d+)", problem_msg)
-            
+
             return int(match.group(1)) if match else None
-            
+
         except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
             raise exceptions.XAPIBridgeLRSBackendResponseParseError(
                 f"Ошибка парсинга ответа LRS: {str(exc)}"

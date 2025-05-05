@@ -1,10 +1,5 @@
 """
 Модуль для взаимодействия с API Open edX (LMS).
-
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современными библиотеками
-- Улучшенной обработкой ошибок
 """
 
 import logging
@@ -35,7 +30,7 @@ class BaseLMSAPIClient:
         if settings.LMS_API_USE_MEMCACHED:
             try:
                 return memcache.Client(
-                    settings.MEMCACHED_ADDRESS, 
+                    settings.MEMCACHED_ADDRESS,
                     connect_timeout=2,
                     timeout=5
                 )
@@ -70,18 +65,18 @@ class EnrollmentApiClient(BaseLMSAPIClient):
     def get_course_info(self, course_id: str) -> Dict[str, Any]:
         """
         Получение информации о курсе.
-        
+
         Args:
             course_id: Идентификатор курса (например, course-v1:org+course+run)
-            
+
         Returns:
             Словарь с данными курса
-            
+
         Raises:
             XAPIBridgeCourseNotFoundError: Если курс не найден
         """
         cache_key = f"{self.cache_prefix}course_{course_id}"
-        
+
         # Попытка получить данные из кэша
         if self.cache:
             try:
@@ -92,18 +87,18 @@ class EnrollmentApiClient(BaseLMSAPIClient):
                 logger.warning("Ошибка чтения из кэша: %s", e)
 
         try:
-            response = self.client.courses(course_id).get(params={'include_expired': 1})
+            response = self.client.course(course_id).get(params={'include_expired': 1})
             course_data = self._parse_response(response)
-            
+
             # Кэширование на 5 минут
             if self.cache and course_data:
                 try:
                     self.cache.set(cache_key, course_data, expire=300)
                 except Exception as e:
                     logger.warning("Ошибка записи в кэш: %s", e)
-            
+
             return course_data
-            
+
         except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
             error_msg = f"Ошибка получения данных курса {course_id}: {str(e)}"
             logger.error(error_msg)
@@ -113,15 +108,15 @@ class EnrollmentApiClient(BaseLMSAPIClient):
         """Парсинг и валидация ответа API."""
         if not response.get('course_name'):
             raise exceptions.XAPIBridgeCourseNotFoundError("Невалидный ответ API")
-            
+
         data = {
             'name': response['course_name'],
             'description': response.get('description', ''),
         }
-        
+
         if settings.UNTI_XAPI:
             data['2035_id'] = response.get('integrate_2035_id', '').strip()
-        
+
         return data
 
 
@@ -134,16 +129,16 @@ class UserApiClient(BaseLMSAPIClient):
             cache_prefix="user_api_"
         )
 
-    def get_user_info(self, username: str) -> Dict[str, str]:
+    def get_edx_user_info(self, username: str) -> Dict[str, str]:
         """
         Получение информации о пользователе.
-        
+
         Args:
             username: Логин пользователя в системе
-            
+
         Returns:
             Словарь с данными пользователя
-            
+
         Raises:
             XAPIBridgeUserNotFoundError: Если пользователь не найден
         """
@@ -151,7 +146,7 @@ class UserApiClient(BaseLMSAPIClient):
             raise exceptions.XAPIBridgeUserNotFoundError("Пустой username")
 
         cache_key = f"{self.cache_prefix}user_{username}"
-        
+
         # Попытка получить данные из кэша
         if self.cache:
             try:
@@ -164,16 +159,16 @@ class UserApiClient(BaseLMSAPIClient):
         try:
             response = self.client.accounts(username).get()
             user_data = self._parse_response(response)
-            
+
             # Кэширование на 5 минут
             if self.cache and user_data:
                 try:
                     self.cache.set(cache_key, user_data, expire=300)
                 except Exception as e:
                     logger.warning("Ошибка записи в кэш: %s", e)
-            
+
             return user_data
-            
+
         except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
             error_msg = f"Ошибка получения данных пользователя {username}: {str(e)}"
             logger.error(error_msg)
@@ -183,15 +178,15 @@ class UserApiClient(BaseLMSAPIClient):
         """Парсинг и валидация ответа API."""
         if not response.get('email'):
             raise exceptions.XAPIBridgeUserNotFoundError("Невалидный ответ API")
-            
+
         data = {
             'email': response['email'],
             'fullname': response.get('name', ''),
         }
-        
+
         if settings.UNTI_XAPI:
             data['unti_id'] = response.get('unti_id', '').strip()
-        
+
         return data
 
 

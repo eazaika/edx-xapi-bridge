@@ -4,11 +4,6 @@ xAPI Statements для событий курса в Open edX: записи, за
 Соответствует профилю курсовой активности ADL xAPI:
 https://w3id.org/xapi/cmi5/v1.0.3/
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современным синтаксисом super()
-- F-строками
-- Безопасным доступом к данным
 """
 
 from typing import Dict, Any, Optional
@@ -32,8 +27,7 @@ class CourseActivityDefinition(ActivityDefinition):
             event: Событие трекинга с контекстом курса
         """
         course_info = self.enrollment_api_client.get_course_info(
-            event['context']['course_id'],
-            unti=settings.UNTI_XAPI
+            event['context']['course_id']
         )
 
         kwargs.update({

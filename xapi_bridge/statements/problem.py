@@ -1,11 +1,6 @@
 """
 xAPI Statements for problem interactions in Open edX.
 
-Migrated to Python 3.10 with:
-- Modern dict key handling
-- Type annotations
-- F-strings
-- Improved error handling
 """
 
 import json
@@ -72,6 +67,7 @@ class ProblemCheckStatement(ProblemStatement):
     def __init__(self, event: Dict[str, Any], *args, **kwargs):
         if event['event_source'].lower() != 'server':
             raise exceptions.XAPIBridgeSkippedConversion(
+                event['event_type'],
                 "Skipping browser-originated problem check"
             )
         super().__init__(event, *args, **kwargs)  # Modern super call
@@ -94,7 +90,7 @@ class ProblemCheckStatement(ProblemStatement):
         """
         event_data = self.get_event_data(event)
         answer: List[str] = []
-        
+
         try:
             submission = event_data['submission']
             for key in submission:
@@ -156,7 +152,7 @@ class ProblemSubmittedStatement(ProblemStatement):
         event_data = self.get_event_data(event)
         earned = event_data['weighted_earned']
         possible = event_data['weighted_possible']
-        
+
         return Result(
             score={
                 'raw': earned,

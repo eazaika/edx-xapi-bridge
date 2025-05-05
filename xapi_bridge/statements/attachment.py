@@ -4,10 +4,6 @@ xAPI Statements для работы с вложениями в заданиях 
 Соответствует спецификации xAPI для файловых вложений:
 https://xapi.com/profiles/file-attachments/
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современной обработкой строк
-- Безопасным доступом к данным
 """
 
 from typing import Dict, Any, List
@@ -59,7 +55,7 @@ class AttachmentStatement(block.BaseCoursewareBlockStatement):
         """
         file_data = event.get('event', {})
         context = event.get('context', {})
-        
+
         return Attachment(
             usage_type="http://id.tincanapi.com/attachment/supporting_media",
             display=LanguageMap({"ru-RU": file_data.get('filename', 'Файл')}),
@@ -103,7 +99,7 @@ class AttachmentStatement(block.BaseCoursewareBlockStatement):
             completion=True,
             success=True,
             extensions={
-                constants.XAPI_RESULT_EXTENSION_FILE_SIZE: 
+                constants.XAPI_RESULT_EXTENSION_FILE_SIZE:
                 event.get('event', {}).get('size', 0)
             }
         )

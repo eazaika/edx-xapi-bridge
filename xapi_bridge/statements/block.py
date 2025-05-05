@@ -1,11 +1,6 @@
 """
 Определения активностей для курсовых блоков Open edX.
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современными super() вызовами
-- F-строками
-- Обработкой Unicode по умолчанию
 """
 
 from typing import Dict, Any, Optional
@@ -21,7 +16,7 @@ from xapi_bridge import constants, settings
 
 class BlockActivityDefinition(ActivityDefinition):
     """Определение активности для курсового блока."""
-    
+
     def __init__(self, event: Dict[str, Any], *args, **kwargs):
         """
         Инициализирует определение активности блока.
@@ -44,7 +39,7 @@ class BlockActivityDefinition(ActivityDefinition):
 
 class BlockAssessmentDefinition(ActivityDefinition):
     """Определение активности для оценочного блока."""
-    
+
     def __init__(self, event: Dict[str, Any], *args, **kwargs):
         """
         Инициализирует определение оценочного блока.
@@ -91,7 +86,7 @@ class BlockAssessmentDefinition(ActivityDefinition):
 
 class BaseCoursewareBlockStatement(base.LMSTrackingLogStatement):
     """Базовый класс для взаимодействий с курсовыми блоками."""
-    
+
     def _get_activity_id(self, event: Dict[str, Any]) -> str:
         """
         Генерирует IRI идентификатор активности.
