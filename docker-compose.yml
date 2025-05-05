@@ -1,0 +1,29 @@
+volumes:
+  tracking_logs:
+    driver: local
+    driver_opts:
+        type: ext4
+        device: "/var/log/logs_for_xapi_docker"
+        o: bind
+
+services:
+  xapi_bridge:
+    build: .
+    ports:
+      - "9090:9090"
+    expose:
+      - 9090
+    restart: unless-stopped
+    environment:
+      - log_path=${LOG_PATH}
+    volumes:
+      - tracking_logs:/var/log
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./xapi_bridge
+          target: /app/xapi_bridge
+        - action: rebuild
+          path: Dockerfile
+        - action: rebuild
+          path: build.sh          
