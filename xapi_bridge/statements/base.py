@@ -1,12 +1,5 @@
 """
 Базовые классы для построения xAPI-высказываний из данных трекинга Open edX.
-
-Мигрировано на Python 3.10 с:
-- Современным синтаксисом super()
-- Аннотациями типов
-- Обработкой исключений Python 3
-- F-строками
-- Явным преобразованием типов данных
 """
 
 from copy import deepcopy
@@ -48,7 +41,7 @@ class LMSTrackingLogStatement(Statement):
                 timestamp=self.get_timestamp(event),
                 authority=self.get_authority(),
             )
-            
+
             # Обработка вложений (для событий типа 'edx.attachment')
             if event.get('event_type') == 'edx.attachment':
                 kwargs['attachments'] = self.get_attachment(event)
@@ -57,7 +50,11 @@ class LMSTrackingLogStatement(Statement):
 
         except (ValueError, TypeError, AttributeError) as e:
             error_msg = f"Ошибка преобразования в классе {self.__class__.__name__}: {str(e)}"
-            raise exceptions.XAPIBridgeStatementConversionError(event=event, message=error_msg) from e
+            raise exceptions.XAPIBridgeStatementConversionError(
+                event_type=event['event_type'],
+                event_data=event,
+                reason=error_msg
+            ) from e
 
     def _get_edx_user_info(self, username: str) -> Dict[str, Any]:
         """Получает информацию о пользователе через API Open edX."""
@@ -79,13 +76,15 @@ class LMSTrackingLogStatement(Statement):
     def get_actor(self, event: Dict[str, Any]) -> Optional[Agent]:
         """Создает xAPI Agent на основе данных пользователя."""
         try:
-            username = event['event']['username']
+            username = event['username']
+            if not username:
+                username = event['event']['username']
         except KeyError:
             username = event['context']['module'].get('username', 'anonymous')
 
         try:
             user_info = self._get_edx_user_info(username)
-        except exceptions.UserNotFoundError:
+        except exceptions.XAPIBridgeUserNotFoundError:
             return None
 
         # Обработка анонимных пользователей
@@ -126,7 +125,7 @@ class LMSTrackingLogStatement(Statement):
 
 class ReferringActivityDefinition(ActivityDefinition):
     """Определение активности-источника для контекста xAPI."""
-    
+
     def __init__(self, event: Dict[str, Any], *args, **kwargs):
         """
         Инициализирует определение активности-источника.

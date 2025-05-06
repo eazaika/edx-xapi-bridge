@@ -1,10 +1,6 @@
 """
 Клиент для отправки xAPI-высказываний в LRS.
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современными библиотеками
-- Улучшенной обработкой ошибок
 """
 
 import importlib
@@ -14,7 +10,7 @@ import socket
 from typing import Any, Optional
 
 from tincan import RemoteLRS, StatementList
-from tincan.remote_lrs import RemoteLRSResponse
+from tincan.lrs_response import LRSResponse
 
 from xapi_bridge import exceptions, settings
 from xapi_bridge.lrs_backends.learninglocker import LRSBackend
@@ -34,7 +30,7 @@ class XAPIBridgeLRSPublisher:
         """Конфигурация подключения к LRS."""
         config = {
             'endpoint': settings.LRS_ENDPOINT,
-            'version': "1.0.3"
+            'version': "1.0.1"
         }
 
         if settings.LRS_BASICAUTH_HASH:
@@ -47,19 +43,19 @@ class XAPIBridgeLRSPublisher:
 
         return RemoteLRS(**config)
 
-    def publish_statements(self, statements: StatementList) -> RemoteLRSResponse:
+    def publish_statements(self, statements: StatementList) -> LRSResponse:
         """
         Отправка пакета высказываний в LRS.
-        
+
         Args:
             statements: Список xAPI-высказываний
-            
+
         Returns:
             Ответ от LRS
-            
+
         Raises:
             XAPIBridgeLRSConnectionError: Ошибка подключения
-            XAPIBridgeStatementStorageError: Ошибка сохранения
+            XAPIBridgeStatementError: Ошибка сохранения
         """
         try:
             response = self.lrs.save_statements(statements)
@@ -70,7 +66,7 @@ class XAPIBridgeLRSPublisher:
             logger.error(error_msg)
             raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
 
-    def _handle_response(self, response: RemoteLRSResponse, statements: StatementList) -> None:
+    def _handle_response(self, response: LRSResponse, statements: StatementList) -> None:
         """Обработка ответа от LRS."""
         if response.success:
             logger.info(f"Успешно отправлено {len(statements)} высказываний")
@@ -91,7 +87,7 @@ class XAPIBridgeLRSPublisher:
             bad_statement = statements[bad_index] if bad_index is not None else None
             error_msg = f"Ошибка сохранения высказывания: {response_data.get('message', '')}"
             logger.error(error_msg)
-            raise exceptions.XAPIBridgeStatementStorageError(
+            raise exceptions.XAPIBridgeStatementError(
                 statement=bad_statement,
                 message=error_msg
             )

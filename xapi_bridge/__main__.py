@@ -1,11 +1,6 @@
 """
 Основной модуль для обработки событий трекинга Open edX и отправки xAPI-высказываний.
 
-Мигрировано на Python 3.10 с:
-- Современными библиотеками
-- Аннотациями типов
-- F-строками
-- Улучшенной обработкой ошибок
 """
 
 from datetime import datetime
@@ -78,7 +73,7 @@ class QueueManager:
                     break
                 except exceptions.XAPIBridgeLRSConnectionError as e:
                     self._handle_connection_error(e, statements)
-                except exceptions.XAPIBridgeStatementStorageError as e:
+                except exceptions.XAPIBridgeStatementError as e:
                     self._handle_storage_error(e, statements)
 
             self.cache.clear()
@@ -98,7 +93,7 @@ class QueueManager:
         self.publish_retries += 1
         time.sleep(1)
 
-    def _handle_storage_error(self, e: exceptions.XAPIBridgeStatementStorageError, statements: StatementList) -> None:
+    def _handle_storage_error(self, e: exceptions.XAPIBridgeStatementError, statements: StatementList) -> None:
         """Обработка ошибок хранения."""
         logger.warning(f"Ошибка хранения: {e.message}")
         statements.remove(e.statement)
@@ -132,7 +127,7 @@ class TailHandler(ProcessEvent):
     def process_IN_MODIFY(self, event) -> None:
         """Обработка изменений файла."""
         buff = self.race_buffer + self.ifp.read()
-        
+
         if buff and buff[-1] != '\n':
             self.race_buffer = buff
             return
@@ -147,8 +142,13 @@ class TailHandler(ProcessEvent):
                 if statements:
                     for stmt in statements:
                         self.publish_queue.push(stmt)
-            except (json.JSONDecodeError, exceptions.XAPIBridgeSkippedConversion) as e:
-                logger.warning(f"Ошибка обработки события: {e}")
+            except json.JSONDecodeError as e:
+                logger.warning(f"Ошибка json-конвертации события: {e}. Событие {event}")
+            except Exception as e:
+                raise exceptions.XAPIBridgeSkippedConversion(
+                    event_type=event['event_type'],
+                    reason=f"Ошибка обработки события: {e}"
+                ) from e
 
     def process_IN_MOVE_SELF(self, event) -> None:
         logger.info("Файл перемещен")
@@ -166,7 +166,7 @@ def watch(file_path: str) -> None:
 
     try:
         with TailHandler(file_path) as handler:
-            notifier = Notifier(wm, handler, 
+            notifier = Notifier(wm, handler,
                 read_freq=settings.NOTIFIER_READ_FREQ,
                 timeout=settings.NOTIFIER_POLL_TIMEOUT)
             wm.add_watch(file_path, TailHandler.MASK)
@@ -216,7 +216,7 @@ if __name__ == '__main__':
 
     # Проверка подключения к LRS
     try:
-        response = client.lrs.about()
+        response = client.lrs_publisher.lrs.about()
         if response.success:
             logger.info(f"Успешное подключение к LRS: {settings.LRS_ENDPOINT}")
         else:

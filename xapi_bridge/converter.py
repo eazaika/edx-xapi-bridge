@@ -1,10 +1,6 @@
 """
 Конвертер событий трекинга Open edX в xAPI-высказывания.
 
-Мигрировано на Python 3.10 с:
-- Аннотациями типов
-- Современной работой со словарями
-- Улучшенной обработкой ошибок
 """
 
 import logging
@@ -12,7 +8,7 @@ from typing import Dict, Optional, Tuple
 
 from xapi_bridge import exceptions, settings
 from xapi_bridge.statements import (
-    base, course, problem, 
+    base, course, problem,
     video, vertical_block, attachment
 )
 
@@ -27,6 +23,11 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     'edx.course.enrollment.deactivated': course.CourseUnenrollmentStatement,
     'edx.course.completed': course.CourseCompletionStatement,
     'edx.course.expell': course.CourseExpellStatement,
+
+    # course completion
+    #'edx.certificate.created': course.CourseCompletionStatement,
+
+    # 'edx.drag_and_drop_v2.item.dropped'
 
     # Завершение составных блоков
     'complete_vertical': vertical_block.VerticalBlockCompleteStatement,
@@ -58,7 +59,7 @@ def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
     try:
         event_type = _normalize_event_type(evt['event_type'])
         _check_ignored_events(event_type)
-        
+
         # Специальная обработка video_check
         if event_type == 'problem_check':
             event_type = _handle_video_check(evt, event_type)
@@ -72,7 +73,7 @@ def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
         logger.debug(f"Необрабатываемый тип события: {event_type}. Ошибка: {str(e)}")
     except Exception as e:
         logger.error(f"Критическая ошибка конвертации: {str(e)}. Событие: {evt}")
-    
+
     return None
 
 
@@ -80,11 +81,11 @@ def _normalize_event_type(event_type: str) -> str:
     """Нормализация типа события."""
     return event_type.replace("xblock-video.", "").strip()
 
-
 def _check_ignored_events(event_type: str) -> None:
     """Проверка игнорируемых событий."""
     if event_type in settings.IGNORED_EVENT_TYPES:
         raise exceptions.XAPIBridgeSkippedConversion(
+            event_type,
             f"Событие {event_type} в списке игнорируемых"
         )
 
@@ -105,14 +106,15 @@ def _create_statement(statement_class, evt: Dict) -> Tuple[base.LMSTrackingLogSt
         statement = statement_class(evt)
         if not hasattr(statement, 'version'):
             raise exceptions.XAPIBridgeStatementConversionError(
-                event=evt,
-                message="Отсутствует обязательное поле version"
+                event_type=evt['event_type'],
+                event_data=evt,
+                reason="Отсутствует обязательное поле version"
             )
         return (statement,)
     except exceptions.XAPIBridgeSkippedConversion as e:
         raise e
     except Exception as e:
-        raise exceptions.XAPIBridgeStatementConversionError(
-            event=evt,
-            message=f"Ошибка создания высказывания: {str(e)}"
+        raise exceptions.XAPIBridgeStatementError(
+            raw_event=evt,
+            validation_errors=e
         ) from e

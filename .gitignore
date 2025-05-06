@@ -2,6 +2,7 @@
 *.swp
 *.egg-info
 
+.env
 env
 
 xapi_bridge/settings.py
