@@ -1,26 +1,37 @@
-# -*- coding: utf-8 -*-
-"""xAPI Statements and Activities for verbs on courses as a whole."""
+"""
+xAPI Statements for problem interactions in Open edX.
 
+"""
 
 import json
 import re
+import logging
+from typing import Dict, Any, List, Union
 
-from tincan import Activity, ActivityDefinition, ActivityList, LanguageMap, Result, Verb, ContextActivities
+from tincan import (
+    Activity, ActivityDefinition, ActivityList,
+    LanguageMap, Result, Verb, ContextActivities
+)
 
-import block
-import course
+from . import block, course
 from xapi_bridge import constants, exceptions, settings
 
-import logging
-log = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 class ProblemStatement(block.BaseCoursewareBlockStatement):
-    """ Statement base for problem events."""
+    """Base class for problem interaction statements."""
 
-    def get_object(self, event):
+    def get_object(self, event: Dict[str, Any]) -> Activity:
         """
-        Get object for the statement.
+        Constructs problem activity object.
+
+        Args:
+            event: Problem interaction event data
+
+        Returns:
+            Activity: xAPI activity representing the problem
         """
         try:
             display_name = event['context']['module']['display_name']
@@ -29,8 +40,9 @@ class ProblemStatement(block.BaseCoursewareBlockStatement):
 
         try:
             event_data = self.get_event_data(event)
-            submission = event_data['submission'][event_data['submission'].keys()[0]]
-            question = submission['question'].replace('\"', '').replace('\\', '')
+            submission = event_data['submission']
+            first_key = next(iter(submission.keys()))  # Python 3 dict handling
+            question = submission[first_key]['question']
             question = re.sub(r'\(\$(\w+)\)', r'<\1>', question)
         except KeyError:
             question = event['context']['question']
@@ -38,61 +50,67 @@ class ProblemStatement(block.BaseCoursewareBlockStatement):
         return Activity(
             id=self._get_activity_id(event),
             definition=ActivityDefinition(
-                type=constants.XAPI_ACTIVITY_INTERACTION, # could be _QUESTION if not CAPA
+                type=constants.XAPI_ACTIVITY_INTERACTION,
                 name=LanguageMap({'ru-RU': question}),
                 description=LanguageMap({'ru-RU': display_name}),
-                # TODO: interactionType, correctResponsesPattern, choices, if possible
             ),
         )
 
+
 class ProblemGradedStatement(ProblemStatement):
-    """Statement for student gave answer to a problem."""
+    """Handles graded problem submissions."""
 
 
 class ProblemCheckStatement(ProblemStatement):
-    """Statement for student checking answer to a problem."""
+    """Handles problem answer check events."""
 
-    def __init__(self, event, *args, **kwargs):
-        # 'problem_check' events are emitted from both browser and server
-        # and we only want the server event
+    def __init__(self, event: Dict[str, Any], *args, **kwargs):
         if event['event_source'].lower() != 'server':
-            raise exceptions.XAPIBridgeSkippedConversion("Don't convert problem checks from server")
-        super(ProblemCheckStatement, self).__init__(event, *args, **kwargs)
+            raise exceptions.XAPIBridgeSkippedConversion(
+                event['event_type'],
+                "Skipping browser-originated problem check"
+            )
+        super().__init__(event, *args, **kwargs)  # Modern super call
 
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_ANSWERED,
             display=LanguageMap({'en-US': 'answered', 'ru-RU': 'дан ответ'}),
         )
 
-    def get_result(self, event):
+    def get_result(self, event: Dict[str, Any]) -> Result:
+        """
+        Constructs result with problem response and score.
+
+        Args:
+            event: Problem check event data
+
+        Returns:
+            Result: xAPI result object with scoring details
+        """
         event_data = self.get_event_data(event)
-        # for now we are going to assume one submission
-        # TODO: when is that not true? is it ever not true? What problem types?
+        answer: List[str] = []
+
         try:
-            data = event_data['submission']
-            answer = []
-            for key in data:
-                trash = data[key]['answer']
-                if type(trash) is not unicode:
-                    for i in trash:
-                        p = re.sub(r"(\n.*)", r'', i)
-                        answer.append(p)
+            submission = event_data['submission']
+            for key in submission:
+                answer_data = submission[key]['answer']
+                if isinstance(answer_data, list):
+                    answer.extend(
+                        re.sub(r"(\n.*)", '', item) for item in answer_data
+                    )
                 else:
-                    answer.append(trash)
-            if len(answer) > 1:
-                answer = ', '.join("<%s>" % item for item in answer)
-            else:
-                answer = ''.join(answer[0])
-            answer = answer.replace('\"', '').strip() #.replace('\\\\', '')
-        except:
-            log.error(event)
-            answer = event['context']['answer'].strip() #.replace('\\\\', '')
+                    answer.append(str(answer_data))  # Explicit string conversion
+
+            formatted_answer = ', '.join(f"<{item}>" for item in answer)
+        except KeyError as exc:
+            logger.error("Problem check data error: %s", exc)
+            formatted_answer = event['context'].get('answer', 'Unknown')
 
         try:
             success = event_data['success'] == 'correct'
-        except:
-            success = event['event']['grade'] == event['event']['max_grade']
+        except KeyError:
+            success = event_data.get('grade', 0) >= event_data.get('max_grade', 1)
 
         return Result(
             score={
@@ -102,48 +120,39 @@ class ProblemCheckStatement(ProblemStatement):
                 'scaled': float(event_data['grade']) / float(event_data['max_grade'])
             },
             success=success,
-            # TODO: to determine completion would need to know max allowed attempts?
-            # probably should return True here but uswe a result extension for num attempts/attempts left 
-            response=answer.encode('utf-8')
+            response=formatted_answer  # Already Unicode in Python 3
         )
 
-    def get_context_activities(self, event):
+    def get_context_activities(self, event: Dict[str, Any]) -> ContextActivities:
+        """Builds parent course and assessment context."""
         parent_activities = [
             Activity(
-                id='{}/courses/{}'.format(settings.OPENEDX_PLATFORM_URI, event['context']['course_id']),
+                id=f"{settings.OPENEDX_PLATFORM_URI}/courses/{event['context']['course_id']}",
                 definition=course.CourseActivityDefinition(event)
             ),
-        ]
-        parent = settings.OPENEDX_PLATFORM_URI + ':18010/container/' + event['context']['parent']['usage_key']
-        #parent = event['context']['parent']['usage_key'] #FOR TEST
-        parent_activities.append(
             Activity(
-                id=parent,
+                id=f"{settings.OPENEDX_PLATFORM_URI}:18010/container/"
+                f"{event['context']['parent']['usage_key']}",
                 definition=block.BlockAssessmentDefinition(event['context']['parent'])
-            ),
-        )
-
-        return ContextActivities(
-            parent=ActivityList(parent_activities)
-        )
+            )
+        ]
+        return ContextActivities(parent=ActivityList(parent_activities))
 
 
 class ProblemSubmittedStatement(ProblemStatement):
-    """Statement for student submitting an answer.
+    """Handles problem submission attempts."""
 
-    Recorded in some problem types instead of problem_check; e.g., drag and drop v2.
-    """
-
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_ATTEMPTED,
             display=LanguageMap({'en': 'attempted'}),
         )
 
-    def get_result(self, event):
+    def get_result(self, event: Dict[str, Any]) -> Result:
         event_data = self.get_event_data(event)
         earned = event_data['weighted_earned']
         possible = event_data['weighted_possible']
+
         return Result(
             score={
                 'raw': earned,
@@ -151,22 +160,21 @@ class ProblemSubmittedStatement(ProblemStatement):
                 'max': possible,
                 'scaled': float(earned / possible) if possible > 0 else 0
             },
-            success=True if earned >= possible else False,
+            success=earned >= possible
         )
 
 
 class ProblemResetStatement(ProblemStatement):
-    """Statement for student resetting answer to a problem."""
+    """Handles problem reset events."""
 
-    def get_verb(self, event):
+    def get_verb(self, event: Dict[str, Any]) -> Verb:
         return Verb(
             id=constants.XAPI_VERB_INITIALIZED,
             display=LanguageMap({'en': 'reset'}),
         )
 
-    def get_result(self, event):
-        event_data = self.get_event_data(event)
+    def get_result(self, event: Dict[str, Any]) -> Result:
         return Result(
             completion=False,
-            response=json.dumps("[]")
+            response=json.dumps([])  # Empty response array
         )

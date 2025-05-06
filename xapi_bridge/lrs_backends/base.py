@@ -1,35 +1,66 @@
-"""Abstract base class for xapi backend storage services.
+"""
+Базовый абстрактный класс для бэкендов xAPI хранилищ.
+
 """
 
+from abc import ABC, abstractmethod
+from typing import Any
 
-from abc import ABCMeta, abstractmethod
-from six import add_metaclass
 
-
-@add_metaclass(ABCMeta)
-class LRSBackendBase(object):
+class LRSBackendBase(ABC):
     """
-    Base class to handle LRS backend-specific processing and error handling
+    Абстрактный базовый класс для реализации бэкендов xAPI LRS.
+
+    Определяет обязательные методы для обработки ответов хранилища.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
-    def request_unauthorised(self, response_data):
-        """Return True if response data includes indication of unauthorised access
+    def request_unauthorised(self, response_data: Any) -> bool:
+        """
+        Проверяет наличие ошибки авторизации в ответе.
+
+        Args:
+            response_data: Данные ответа от LRS
+
+        Returns:
+            True если обнаружена ошибка авторизации
         """
 
     @abstractmethod
-    def response_has_errors(self, response_data):
-        """Return True if response data indicates error"""
+    def response_has_errors(self, response_data: Any) -> bool:
+        """
+        Проверяет общее наличие ошибок в ответе.
 
-    @abstractmethod
-    def response_has_storage_errors(self, response_data):
-        """Return True if response data includes indication of errors storing data
+        Args:
+            response_data: Данные ответа от LRS
+
+        Returns:
+            True если ответ содержит ошибки
         """
 
     @abstractmethod
-    def parse_error_response_for_bad_statement(self, response_data):
-        """ Parses backend error message for problematic Statement.
+    def response_has_storage_errors(self, response_data: Any) -> bool:
+        """
+        Проверяет ошибки хранения данных.
 
-        Returns numeric index of bads statement in StatementList.
+        Args:
+            response_data: Данные ответа от LRS
+
+        Returns:
+            True если есть ошибки сохранения данных
+        """
+
+    @abstractmethod
+    def parse_error_response_for_bad_statement(self, response_data: Any) -> int:
+        """
+        Идентифицирует индекс некорректного высказывания.
+
+        Args:
+            response_data: Данные ответа с ошибкой
+
+        Returns:
+            Индекс проблемного высказывания
+
+        Raises:
+            XAPIBridgeLRSBackendResponseParseError: Ошибка парсинга ответа
         """

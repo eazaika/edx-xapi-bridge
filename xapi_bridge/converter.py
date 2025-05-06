@@ -1,17 +1,24 @@
-"""Convert tracking log entries to xAPI statements."""
+"""
+Конвертер событий трекинга Open edX в xAPI-высказывания.
+
+"""
 
 import logging
+from typing import Dict, Optional, Tuple
 
 from xapi_bridge import exceptions, settings
-from xapi_bridge.statements import base, course, problem, video, vertical_block, attachment
+from xapi_bridge.statements import (
+    base, course, problem,
+    video, vertical_block, attachment
+)
 
 
 logger = logging.getLogger(__name__)
 
 
+# Соответствие типов событий классам xAPI-высказываний
 TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
-
-    # course enrollment
+    # События курса
     'edx.course.enrollment.activated': course.CourseEnrollmentStatement,
     'edx.course.enrollment.deactivated': course.CourseUnenrollmentStatement,
     'edx.course.completed': course.CourseCompletionStatement,
@@ -20,65 +27,94 @@ TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP = {
     # course completion
     #'edx.certificate.created': course.CourseCompletionStatement,
 
-    # vertical block - composite kim completion
+    # 'edx.drag_and_drop_v2.item.dropped'
+
+    # Завершение составных блоков
     'complete_vertical': vertical_block.VerticalBlockCompleteStatement,
 
-    # problems
+    # Работа с заданиями
     'problem_check': problem.ProblemCheckStatement,
     'edx.attachment': attachment.AttachmentStatement,
 
-    # 'edx.drag_and_drop_v2.item.dropped'
-
-    # video
-    #'ready_video': video.VideoStatement,
-    #'load_video': video.VideoStatement,
-    #'edx.video.loaded': video.VideoStatement,
-
-    #'play_video': video.VideoPlayStatement,
-    #'edx.video.played': video.VideoPlayStatement,
-
+    # Видео события
     'pause_video': video.VideoStatement,
     'video_check': video.VideoCheckStatement,
     'stop_video': video.VideoCompleteStatement,
-    #'edx.video.stopped': video.VideoCompleteStatement,
-
-    #'show_transcript': video.VideoTranscriptStatement,
-    #'hide_transcript': video.VideoTranscriptStatement,
-    #'edx.video.transcript.shown': video.VideoTranscriptStatement,
-    #'edx.video.transcript.hidden': video.VideoTranscriptStatement,
-    #'edx.video.closed_captions.shown': video.VideoTranscriptStatement,
-    #'edx.video.closed_captions.hidden': video.VideoTranscriptStatement,
 }
 
 
-def to_xapi(evt):
-    """Return tuple of xAPI statements or None if ignored or unhandled event type."""
+def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
+    """
+    Конвертирует событие трекинга в одно или несколько xAPI-высказываний.
 
-    # strip Video XBlock prefixes for checking
-    event_type = evt['event_type'].replace("xblock-video.", "")
+    Args:
+        evt: Сырое событие из логов трекинга
 
-    if event_type in settings.IGNORED_EVENT_TYPES:
-        return  # deliberately ignored event
+    Returns:
+        Кортеж xAPI-высказываний или None если событие игнорируется
 
-    # filter video_check from problem_check
-    event_source = evt['event_source']
-    if event_type == 'problem_check' and event_source == 'server':
-        event_data = evt['event']
-        data = event_data['answers'][event_data['answers'].keys()[0]]
-        if 'watch_times' in data:
-            event_type = 'video_check'
-
+    Raises:
+        XAPIBridgeSkippedConversion: Для пропускаемых событий
+    """
     try:
-        statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[event_type]
-    except KeyError:  # untracked event
-        return
+        event_type = _normalize_event_type(evt['event_type'])
+        _check_ignored_events(event_type)
 
+        # Специальная обработка video_check
+        if event_type == 'problem_check':
+            event_type = _handle_video_check(evt, event_type)
+
+        statement_class = TRACKING_EVENTS_TO_XAPI_STATEMENT_MAP[event_type]
+        return _create_statement(statement_class, evt)
+
+    except exceptions.XAPIBridgeSkippedConversion as e:
+        logger.debug(f"Событие пропущено: {e.message}. Данные: {evt}")
+    except KeyError as e:
+        logger.debug(f"Необрабатываемый тип события: {event_type}. Ошибка: {str(e)}")
+    except Exception as e:
+        logger.error(f"Критическая ошибка конвертации: {str(e)}. Событие: {evt}")
+
+    return None
+
+
+def _normalize_event_type(event_type: str) -> str:
+    """Нормализация типа события."""
+    return event_type.replace("xblock-video.", "").strip()
+
+def _check_ignored_events(event_type: str) -> None:
+    """Проверка игнорируемых событий."""
+    if event_type in settings.IGNORED_EVENT_TYPES:
+        raise exceptions.XAPIBridgeSkippedConversion(
+            event_type,
+            f"Событие {event_type} в списке игнорируемых"
+        )
+
+
+def _handle_video_check(evt: Dict, event_type: str) -> str:
+    """Обработка специального случая проверки видео."""
+    if evt['event_source'] == 'server':
+        answers = evt['event']['answers']
+        first_key = next(iter(answers))
+        if 'watch_times' in answers[first_key]:
+            return 'video_check'
+    return event_type
+
+
+def _create_statement(statement_class, evt: Dict) -> Tuple[base.LMSTrackingLogStatement]:
+    """Создание экземпляра высказывания с валидацией."""
     try:
         statement = statement_class(evt)
-        if hasattr(statement, 'version'):  # make sure it's a proper statement
-            return (statement, )
-        else:
-            message = "Statement missing version."
-            raise exceptions.XAPIBridgeStatementConversionError(event=evt, message=message)
+        if not hasattr(statement, 'version'):
+            raise exceptions.XAPIBridgeStatementConversionError(
+                event_type=evt['event_type'],
+                event_data=evt,
+                reason="Отсутствует обязательное поле version"
+            )
+        return (statement,)
     except exceptions.XAPIBridgeSkippedConversion as e:
-        logger.debug("Skipping conversion of event with message {}.  Event was {}".format(e.message, evt))
+        raise e
+    except Exception as e:
+        raise exceptions.XAPIBridgeStatementError(
+            raw_event=evt,
+            validation_errors=e
+        ) from e
