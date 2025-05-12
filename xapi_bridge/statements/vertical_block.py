@@ -85,7 +85,7 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
                 completion=True
             )
         except (KeyError, IndexError, ZeroDivisionError) as e:
-            logger.error("Ошибка обработки прогресса: %s", str(e))
+            logger.warning("Ошибка обработки прогресса: %s", str(e))
             return Result(
                 success=True,
                 completion=True,
