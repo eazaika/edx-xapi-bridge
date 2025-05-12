@@ -124,6 +124,14 @@ class TailHandler(ProcessEvent):
         self.publish_queue.destroy()
         self.ifp.close()
 
+    def check_NOT_DAMAGED(self, event) -> Any:
+        """ Проверка на целостность полученного события
+        в логе события от Оценки просмотренного события
+        (с watch_times) превышают лимит и ломают формат """
+        if event[-1] != '}':
+            return event + '\"}}}}'
+        return event
+
     def process_IN_MODIFY(self, event) -> None:
         """Обработка изменений файла."""
         buff = self.race_buffer + self.ifp.read()
@@ -137,6 +145,7 @@ class TailHandler(ProcessEvent):
             if not line:
                 continue
             try:
+                line = self.check_NOT_DAMAGED(line)
                 event = json.loads(line)
                 statements = converter.to_xapi(event)
                 if statements:

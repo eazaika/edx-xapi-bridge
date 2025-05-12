@@ -58,7 +58,7 @@ def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
     """
     try:
         event_type = _normalize_event_type(evt['event_type'])
-        _check_ignored_events(event_type)
+        _check_ignored_events(evt['event_source'], event_type)
 
         # Специальная обработка video_check
         if event_type == 'problem_check':
@@ -81,8 +81,13 @@ def _normalize_event_type(event_type: str) -> str:
     """Нормализация типа события."""
     return event_type.replace("xblock-video.", "").strip()
 
-def _check_ignored_events(event_type: str) -> None:
+def _check_ignored_events(event_source: str, event_type: str) -> None:
     """Проверка игнорируемых событий."""
+    if event_source == 'browser':
+        raise exceptions.XAPIBridgeSkippedConversion(
+            event_source,
+            f"Событие из источника {event_source} игнорируется"
+        )
     if event_type in settings.IGNORED_EVENT_TYPES:
         raise exceptions.XAPIBridgeSkippedConversion(
             event_type,
