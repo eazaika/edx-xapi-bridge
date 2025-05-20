@@ -16,6 +16,7 @@ services:
     restart: unless-stopped
     environment:
       - log_path=${LOG_PATH}
+      - TZ=Europe/Moscow
     volumes:
       - tracking_logs:/var/log
     develop:
