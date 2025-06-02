@@ -125,9 +125,11 @@ class TailHandler(ProcessEvent):
         self.ifp.close()
 
     def check_NOT_DAMAGED(self, event) -> Any:
-        """ Проверка на целостность полученного события
+        """
+        Проверка на целостность полученного события
         в логе события от Оценки просмотренного события
-        (с watch_times) превышают лимит и ломают формат """
+        (с watch_times) превышают лимит и ломают формат
+        """
         if event[-1] != '}':
             return event + '\"}}}}'
         return event
@@ -234,7 +236,17 @@ if __name__ == '__main__':
         logger.error(f"Ошибка подключения к LRS: {e}")
         sys.exit(1)
 
-    # Запуск наблюдения
+    # Определяем режим наблюдения
     log_file = sys.argv[1] if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
+    if len(sys.argv) > 1:
+        log_file = sys.argv[1]
+
+        # Если запуск в флагом --historical-log -> запускаем обработку старых логов
+        if len(sys.argv) > 2:
+            process_historical_logs(log_file)
+    else:
+        log_file = '/edx/var/log/tracking/tracking.log'
+
+    # Запуск наблюдения за свежим логом
     logger.info(f"Начало работы: {datetime.now().isoformat()}")
     watch(log_file)
