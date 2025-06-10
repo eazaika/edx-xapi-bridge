@@ -83,11 +83,6 @@ def _normalize_event_type(event_type: str) -> str:
 
 def _check_ignored_events(event_source: str, event_type: str) -> None:
     """Проверка игнорируемых событий."""
-    if event_source == 'browser':
-        raise exceptions.XAPIBridgeSkippedConversion(
-            event_source,
-            f"Событие из источника {event_source} игнорируется"
-        )
     if event_type in settings.IGNORED_EVENT_TYPES:
         raise exceptions.XAPIBridgeSkippedConversion(
             event_type,
