@@ -13,12 +13,16 @@ import threading
 import time
 from types import FrameType
 from typing import Any, Dict, Optional
+import argparse
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import socketserver
 
 from pyinotify import WatchManager, Notifier, NotifierError, EventsCodes, ProcessEvent
 from tincan import StatementList
 
 from xapi_bridge import client, converter, exceptions, settings
 from xapi_bridge.constants import OPENEDX_OAUTH2_TOKEN_URL
+from xapi_bridge.historical_processor import process_historical_logs
 
 if settings.HTTP_PUBLISH_STATUS:
     from xapi_bridge.server import httpd
@@ -208,7 +212,7 @@ def setup_logging() -> None:
     """Настройка логирования."""
     level = logging.DEBUG if settings.DEBUG_MODE else logging.INFO
     logging.basicConfig(
-        format='%(asctime)s %(levelname)s: %(message)s',
+        format='%(asctime)s %(levelname)s [%(name)s]: %(message)s',
         level=level,
         handlers=[
             logging.FileHandler(settings.LOG_FILE),
@@ -216,8 +220,47 @@ def setup_logging() -> None:
         ]
     )
 
+    if settings.SENTRY_DSN:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.logging import LoggingIntegration
+            sentry_sdk.init(
+                dsn=settings.SENTRY_DSN,
+                integrations=[LoggingIntegration()]
+            )
+        except ImportError:
+            logger.warning("Sentry SDK не установлен")
 
-if __name__ == '__main__':
+
+class StatusOKRequestHandler(BaseHTTPRequestHandler):
+    """Обработчик HTTP-запросов для проверки статуса."""
+
+    def do_GET(self):
+        """Обработка GET-запроса."""
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'OK')
+
+    def log_message(self, format, *args):
+        """Переопределение логирования HTTP-сервера."""
+        logger.info("%s - %s", self.client_address[0], format % args)
+
+
+def main():
+    """Основная функция запуска."""
+    parser = argparse.ArgumentParser(description='xAPI Bridge для Open edX')
+    parser.add_argument('log_file', nargs='?', default='/edx/var/log/tracking/tracking.log',
+                      help='Путь к файлу логов (по умолчанию: /edx/var/log/tracking/tracking.log)')
+    parser.add_argument('--historical-log', action='store_true',
+                      help='Обработать исторический лог')
+    parser.add_argument('--test-mode', action='store_true',
+                      help='Запустить в тестовом режиме (без отправки в LRS)')
+    parser.add_argument('--output-file',
+                      help='Путь к файлу для сохранения высказываний в тестовом режиме')
+    
+    args = parser.parse_args()
+
     setup_logging()
 
     # Инициализация HTTP-сервера
@@ -225,28 +268,13 @@ if __name__ == '__main__':
         server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         server_thread.start()
 
-    # Проверка подключения к LRS
-    try:
-        response = client.lrs_publisher.lrs.about()
-        if response.success:
-            logger.info(f"Успешное подключение к LRS: {settings.LRS_ENDPOINT}")
-        else:
-            raise exceptions.XAPIBridgeLRSConnectionError(response)
-    except Exception as e:
-        logger.error(f"Ошибка подключения к LRS: {e}")
-        sys.exit(1)
-
-    # Определяем режим наблюдения
-    log_file = sys.argv[1] if len(sys.argv) > 1 else '/edx/var/log/tracking/tracking.log'
-    if len(sys.argv) > 1:
-        log_file = sys.argv[1]
-
-        # Если запуск в флагом --historical-log -> запускаем обработку старых логов
-        if len(sys.argv) > 2:
-            process_historical_logs(log_file)
+    if args.historical_log:
+        process_historical_logs(args.log_file, test_mode=args.test_mode, output_file=args.output_file)
     else:
-        log_file = '/edx/var/log/tracking/tracking.log'
+        # Запуск наблюдения за свежим логом
+        logger.info(f"Начало работы: {datetime.now().isoformat()}")
+        watch(args.log_file)
 
-    # Запуск наблюдения за свежим логом
-    logger.info(f"Начало работы: {datetime.now().isoformat()}")
-    watch(log_file)
+
+if __name__ == '__main__':
+    main()

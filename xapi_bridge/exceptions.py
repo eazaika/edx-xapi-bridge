@@ -73,6 +73,20 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
 class XAPIBridgeDataError(XAPIBridgeBaseException):
     """Ошибка обработки данных."""
 
+
+class XAPIBridgeDataError(XAPIBridgeBaseException):
+    """Ошибка обработки данных."""
+
+
+class XAPIBridgeCourseNotFoundError(XAPIBridgeBaseException):
+    """Исключение при отсутствии курса в LMS."""
+
+    def __init__(self, message: str, course_id: str = None):
+        context = {'course_id': course_id} if course_id else {}
+        super().__init__(message=message, context=context)
+
+
+
 class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
     """Exception class for no LMS user found."""
 

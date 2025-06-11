@@ -15,6 +15,8 @@ from tincan import (
 
 from . import block, course
 from xapi_bridge import constants, exceptions, settings
+from xapi_bridge.exceptions import XAPIBridgeCourseNotFoundError, XAPIBridgeSkippedConversion
+
 
 
 logger = logging.getLogger(__name__)
