@@ -16,6 +16,9 @@ from typing import Any, Dict, Optional
 import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import socketserver
+import gzip
+from pathlib import Path
+import re
 
 from pyinotify import WatchManager, Notifier, NotifierError, EventsCodes, ProcessEvent
 from tincan import StatementList
@@ -247,33 +250,125 @@ class StatusOKRequestHandler(BaseHTTPRequestHandler):
         logger.info("%s - %s", self.client_address[0], format % args)
 
 
-def main():
-    """Основная функция запуска."""
-    parser = argparse.ArgumentParser(description='xAPI Bridge для Open edX')
-    parser.add_argument('log_file', nargs='?', default='/edx/var/log/tracking/tracking.log',
-                      help='Путь к файлу логов (по умолчанию: /edx/var/log/tracking/tracking.log)')
-    parser.add_argument('--historical-log', action='store_true',
-                      help='Обработать исторический лог')
-    parser.add_argument('--test-mode', action='store_true',
-                      help='Запустить в тестовом режиме (без отправки в LRS)')
-    parser.add_argument('--output-file',
-                      help='Путь к файлу для сохранения высказываний в тестовом режиме')
-    
-    args = parser.parse_args()
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='xAPI Bridge for Open edX')
+    parser.add_argument('watchfile', nargs='?', help='Path to the tracking log file to watch')
+    parser.add_argument('--historical-logs-dir', help='Path to directory containing historical log files')
+    parser.add_argument('--historical-logs-dates', help='Date range for historical logs in format YYYYMMDD-YYYYMMDD')
+    return parser.parse_args()
 
+def process_gzipped_logs(log_dir: str, date_range: Optional[str] = None) -> None:
+    """
+    Process gzipped log files in the specified directory.
+    
+    Args:
+        log_dir: Path to directory containing log files
+        date_range: Optional date range in format YYYYMMDD-YYYYMMDD
+    """
+    log_dir_path = Path(log_dir)
+    if not log_dir_path.exists() or not log_dir_path.is_dir():
+        logger.error(f"Directory not found: {log_dir}")
+        return
+
+    # Create temporary directory in user's home directory
+    home_dir = Path.home()
+    temp_dir = Path(getattr(settings, 'TEMP_DIR', None) or home_dir / '.xapi_bridge_temp')
+    temp_dir.mkdir(exist_ok=True)
+    logger.info(f"Using temporary directory: {temp_dir}")
+
+    try:
+        # Parse date range if provided
+        start_date = None
+        end_date = None
+        if date_range:
+            try:
+                start_date_str, end_date_str = date_range.split('-')
+                start_date = datetime.strptime(start_date_str, '%Y%m%d')
+                end_date = datetime.strptime(end_date_str, '%Y%m%d')
+            except ValueError:
+                logger.error("Invalid date range format. Use YYYYMMDD-YYYYMMDD")
+                return
+
+        # Find all gzipped log files
+        log_files = list(log_dir_path.glob('*.gz'))
+        total_processed = 0
+        total_statements = 0
+        file_statistics = []  # Список для хранения статистики по каждому файлу
+
+        for log_file in sorted(log_files):
+            # Extract date from filename if possible
+            date_match = re.search(r'(\d{8})', log_file.name)
+            if date_match and start_date and end_date:
+                file_date = datetime.strptime(date_match.group(1), '%Y%m%d')
+                if not (start_date <= file_date <= end_date):
+                    continue
+
+            logger.info(f"Processing file: {log_file.name}")
+            try:
+                # Create temporary file in temp directory
+                temp_file = temp_dir / log_file.stem
+                with gzip.open(log_file, 'rt') as gz_file:
+                    with open(temp_file, 'w') as out_file:
+                        out_file.write(gz_file.read())
+
+                # Process the decompressed file
+                statements = process_historical_logs(str(temp_file))
+                if statements:
+                    statements_count = len(statements)
+                    total_statements += statements_count
+                    file_statistics.append({
+                        'file': log_file.name,
+                        'statements': statements_count,
+                        'date': date_match.group(1) if date_match else 'unknown'
+                    })
+                    logger.info(f"Generated {statements_count} statements from {log_file.name}")
+                total_processed += 1
+
+                # Clean up temporary file
+                temp_file.unlink()
+
+            except Exception as e:
+                logger.error(f"Error processing {log_file.name}: {e}")
+                continue
+
+        # Вывод итоговой статистики
+        logger.info("\nProcessing Summary:")
+        logger.info("=" * 50)
+        logger.info(f"Total files processed: {total_processed}")
+        logger.info(f"Total statements generated: {total_statements}")
+        logger.info("\nDetailed Statistics:")
+        logger.info("-" * 50)
+        for stat in sorted(file_statistics, key=lambda x: x['date']):
+            logger.info(f"File: {stat['file']}")
+            logger.info(f"Date: {stat['date']}")
+            logger.info(f"Statements: {stat['statements']}")
+            logger.info("-" * 50)
+
+    finally:
+        # Clean up temporary directory if it's empty
+        try:
+            if not any(temp_dir.iterdir()):
+                temp_dir.rmdir()
+                logger.info(f"Removed empty temporary directory: {temp_dir}")
+        except Exception as e:
+            logger.warning(f"Could not remove temporary directory {temp_dir}: {e}")
+
+def main():
+    """Main entry point."""
+    args = parse_args()
     setup_logging()
 
-    # Инициализация HTTP-сервера
+    if args.historical_logs_dir:
+        process_gzipped_logs(args.historical_logs_dir, args.historical_logs_dates)
+        return
+
     if settings.HTTP_PUBLISH_STATUS:
         server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         server_thread.start()
 
-    if args.historical_log:
-        process_historical_logs(args.log_file, test_mode=args.test_mode, output_file=args.output_file)
-    else:
-        # Запуск наблюдения за свежим логом
-        logger.info(f"Начало работы: {datetime.now().isoformat()}")
-        watch(args.log_file)
+    watchfile = args.watchfile or settings.TRACKING_LOG
+    watch(watchfile)
 
 
 if __name__ == '__main__':

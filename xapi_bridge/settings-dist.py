@@ -120,4 +120,3 @@ def get_env_setting(setting: str, default: Any = None) -> Any:
 
 # Пример использования:
 # LRS_ENDPOINT = get_env_setting('LRS_ENDPOINT', 'https://backup-lrs.example.org/xapi/')
-

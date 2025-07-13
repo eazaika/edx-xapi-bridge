@@ -69,6 +69,9 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
         batch_size (int): Размер пакета для отправки в LRS.
         test_mode (bool): Если True, высказывания сохраняются в файл вместо отправки в LRS.
         output_file (str): Путь к файлу для сохранения высказываний в тестовом режиме.
+
+    Returns:
+        list: Список обработанных xAPI утверждений.
     """
     logger.info(f"Начинаем обработку исторического лога: {log_file}")
 
@@ -82,7 +85,7 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
                 raise exceptions.XAPIBridgeLRSConnectionError(response)
         except Exception as e:
             logger.error(f"Ошибка подключения к LRS: {e}")
-            return
+            return []
 
     try:
         start_time = time.time()
@@ -108,12 +111,14 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
         end_time = time.time()
         duration = end_time - start_time
         logger.info(f"Обработка исторического лога завершена. Время выполнения: {duration:.2f} секунд")
+        return statements
 
     except FileNotFoundError:
         logger.error(f"Файл не найден: {log_file}")
+        return []
     except Exception as e:
         logger.error(f"Произошла ошибка: {e}")
-        return
+        return []
 
 def read_and_transform_logs(log_file):
     """
