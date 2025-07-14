@@ -26,9 +26,7 @@ class CourseActivityDefinition(ActivityDefinition):
         Args:
             event: Событие трекинга с контекстом курса
         """
-        course_info = self.enrollment_api_client.get_course_info(
-            event['context']['course_id']
-        )
+        course_info = self.enrollment_api_client.get_course_info(event)
 
         kwargs.update({
             'type': constants.XAPI_ACTIVITY_COURSE,

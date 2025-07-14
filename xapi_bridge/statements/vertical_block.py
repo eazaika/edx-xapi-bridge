@@ -60,6 +60,7 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
             )
         )
 
+
     def get_result(self, event: Dict[str, Any]) -> Result:
         """
         Формирует результат выполнения блока.
@@ -71,25 +72,54 @@ class VerticalBlockCompleteStatement(block.BaseCoursewareBlockStatement):
             Result: Объект результата с показателями выполнения
         """
         try:
-            progress_data = event['context']['module']['progress']
-            scaled = float(progress_data[0]) / float(progress_data[1])
-
-            return Result(
-                score={
-                    'raw': progress_data[0],
-                    'min': 0,
-                    'max': progress_data[1],
-                    'scaled': scaled
-                },
-                success=event['context']['module'].get('done', False),
-                completion=True
-            )
-        except (KeyError, IndexError, ZeroDivisionError) as e:
-            logger.warning("Ошибка обработки прогресса: %s", str(e))
+            module_data = event['context'].get('module', {})
+            
+            # Пытаемся получить прогресс
+            progress_data = module_data.get('progress')
+            if progress_data and len(progress_data) == 2:
+                raw = float(progress_data[0])
+                max_val = float(progress_data[1])
+                scaled = raw / max_val if max_val > 0 else 0
+                
+                return Result(
+                    score={
+                        'raw': raw,
+                        'min': 0,
+                        'max': max_val,
+                        'scaled': scaled
+                    },
+                    success=module_data.get('done', True),
+                    completion=True
+                )
+            
+            # Если нет данных о прогрессе, проверяем количество дочерних элементов
+            children_count = module_data.get('childrens', 0)
+            if children_count:
+                return Result(
+                    score={
+                        'raw': children_count,
+                        'min': 0,
+                        'max': children_count,
+                        'scaled': 1.0  # Если блок завершен, считаем что все дочерние элементы пройдены
+                    },
+                    success=True,
+                    completion=True
+                )
+            
+            # Если нет никаких данных о прогрессе, возвращаем базовый результат
             return Result(
                 success=True,
-                completion=True,
+                completion=True
             )
+            
+        except Exception as e:
+            logger.debug(f"Детали события: {event}")
+            logger.warning(f"Ошибка обработки прогресса: {str(e)}")
+            return Result(
+                success=True,
+                completion=True
+            )
+
 
     def get_context_activities(self, event: Dict[str, Any]) -> ContextActivities:
         """

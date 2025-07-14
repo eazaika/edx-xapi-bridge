@@ -83,6 +83,16 @@ def _normalize_event_type(event_type: str) -> str:
 
 def _check_ignored_events(event_source: str, event_type: str) -> None:
     """Проверка игнорируемых событий."""
+    # Для видео-событий проверяем, что они из браузера
+    if event_source == 'browser' and event_type not in [
+        'pause_video', 'stop_video', 'video_check'
+    ]:
+        raise exceptions.XAPIBridgeSkippedConversion(
+            event_type,
+            f"Видео-событие {event_type} не из браузера"
+        )
+    
+    # Для всех остальных событий проверяем список игнорируемых
     if event_type in settings.IGNORED_EVENT_TYPES:
         raise exceptions.XAPIBridgeSkippedConversion(
             event_type,

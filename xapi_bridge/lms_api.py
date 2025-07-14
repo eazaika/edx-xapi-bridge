@@ -62,12 +62,13 @@ class EnrollmentApiClient(BaseLMSAPIClient):
             cache_prefix="enrollment_api_"
         )
 
-    def get_course_info(self, course_id: str) -> Dict[str, Any]:
+    def get_course_info(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
         Получение информации о курсе.
+        Сначала пытается получить данные через API, если не получается - использует данные из события.
 
         Args:
-            course_id: Идентификатор курса (например, course-v1:org+course+run)
+            event: Событие из логов трекинга
 
         Returns:
             Словарь с данными курса
@@ -75,32 +76,53 @@ class EnrollmentApiClient(BaseLMSAPIClient):
         Raises:
             XAPIBridgeCourseNotFoundError: Если курс не найден
         """
-        cache_key = f"{self.cache_prefix}course_{course_id}"
-
-        # Попытка получить данные из кэша
-        if self.cache:
-            try:
-                cached = self.cache.get(cache_key)
-                if cached:
-                    return cached
-            except Exception as e:
-                logger.warning("Ошибка чтения из кэша: %s", e)
-
         try:
-            response = self.client.course(course_id).get(params={'include_expired': 1})
-            course_data = self._parse_response(response)
+            context = event.get('context', {})
+            course_id = context.get('course_id')
+            
+            if not course_id:
+                raise exceptions.XAPIBridgeCourseNotFoundError("ID курса не найден в событии")
 
-            # Кэширование на 5 минут
-            if self.cache and course_data:
-                try:
-                    self.cache.set(cache_key, course_data, expire=300)
-                except Exception as e:
-                    logger.warning("Ошибка записи в кэш: %s", e)
+            # Сначала пробуем получить данные через API
+            try:
+                cache_key = f"{self.cache_prefix}course_{course_id}"
 
-            return course_data
+                # Попытка получить данные из кэша
+                if self.cache:
+                    try:
+                        cached = self.cache.get(cache_key)
+                        if cached:
+                            return cached
+                    except Exception as e:
+                        logger.warning("Ошибка чтения из кэша: %s", e)
 
-        except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
-            error_msg = f"Ошибка получения данных курса {course_id}: {str(e)}"
+                response = self.client.course(course_id).get(params={'include_expired': 1})
+                course_data = self._parse_response(response)
+
+                # Кэширование на 5 минут
+                if self.cache and course_data:
+                    try:
+                        self.cache.set(cache_key, course_data, expire=300)
+                    except Exception as e:
+                        logger.warning("Ошибка записи в кэш: %s", e)
+
+                return course_data
+
+            except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
+                logger.warning(f"Не удалось получить данные курса через API: {str(e)}")
+                # Если API недоступен, используем данные из события
+                course_data = {
+                    'name': context.get('module', {}).get('display_name', 'Курс'),
+                    'description': context.get('grandparent', {}).get('display_name', ''),
+                }
+
+                if settings.UNTI_XAPI:
+                    course_data['2035_id'] = context.get('2035_id', '').strip()
+
+                return course_data
+
+        except Exception as e:
+            error_msg = f"Ошибка получения данных курса: {str(e)}"
             logger.error(error_msg)
             raise exceptions.XAPIBridgeCourseNotFoundError(error_msg) from e
 
@@ -129,12 +151,13 @@ class UserApiClient(BaseLMSAPIClient):
             cache_prefix="user_api_"
         )
 
-    def get_edx_user_info(self, username: str) -> Dict[str, str]:
+    def get_edx_user_info(self, event: Dict[str, Any]) -> Dict[str, str]:
         """
         Получение информации о пользователе.
+        Сначала пытается получить данные через API, если не получается - использует данные из события.
 
         Args:
-            username: Логин пользователя в системе
+            event: Событие из логов трекинга
 
         Returns:
             Словарь с данными пользователя
@@ -142,35 +165,51 @@ class UserApiClient(BaseLMSAPIClient):
         Raises:
             XAPIBridgeUserNotFoundError: Если пользователь не найден
         """
-        if not username:
-            raise exceptions.XAPIBridgeUserNotFoundError("Пустой username")
-
-        cache_key = f"{self.cache_prefix}user_{username}"
-
-        # Попытка получить данные из кэша
-        if self.cache:
-            try:
-                cached = self.cache.get(cache_key)
-                if cached:
-                    return cached
-            except Exception as e:
-                logger.warning("Ошибка чтения из кэша: %s", e)
-
         try:
-            response = self.client.accounts(username).get()
-            user_data = self._parse_response(response)
+            username = event.get('username')
+            if not username:
+                raise exceptions.XAPIBridgeUserNotFoundError("Username не найден в событии")
 
-            # Кэширование на 5 минут
-            if self.cache and user_data:
-                try:
-                    self.cache.set(cache_key, user_data, expire=300)
-                except Exception as e:
-                    logger.warning("Ошибка записи в кэш: %s", e)
+            # Сначала пробуем получить данные через API
+            try:
+                cache_key = f"{self.cache_prefix}user_{username}"
 
-            return user_data
+                # Попытка получить данные из кэша
+                if self.cache:
+                    try:
+                        cached = self.cache.get(cache_key)
+                        if cached:
+                            return cached
+                    except Exception as e:
+                        logger.warning("Ошибка чтения из кэша: %s", e)
 
-        except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
-            error_msg = f"Ошибка получения данных пользователя {username}: {str(e)}"
+                response = self.client.accounts(username).get()
+                user_data = self._parse_response(response)
+
+                # Кэширование на 5 минут
+                if self.cache and user_data:
+                    try:
+                        self.cache.set(cache_key, user_data, expire=300)
+                    except Exception as e:
+                        logger.warning("Ошибка записи в кэш: %s", e)
+
+                return user_data
+
+            except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
+                logger.warning(f"Не удалось получить данные пользователя через API: {str(e)}")
+                # Если API недоступен, используем данные из события
+                user_data = {
+                    'email': f"{username}@etu.ru",  # Формируем email на основе username
+                    'fullname': username,  # Используем username как имя
+                }
+
+                if settings.UNTI_XAPI:
+                    user_data['unti_id'] = event.get('context', {}).get('unti_id', '').strip()
+
+                return user_data
+
+        except Exception as e:
+            error_msg = f"Ошибка получения данных пользователя: {str(e)}"
             logger.error(error_msg)
             raise exceptions.XAPIBridgeUserNotFoundError(error_msg) from e
 
