@@ -2,23 +2,23 @@
 Основной модуль для обработки событий трекинга Open edX и отправки xAPI-высказываний.
 
 """
-
-from datetime import datetime
+import argparse
+import gzip
 import json
 import logging
 import os
+import re
 import signal
+import socketserver
 import sys
 import threading
 import time
+
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from types import FrameType
 from typing import Any, Dict, Optional
-import argparse
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import socketserver
-import gzip
-from pathlib import Path
-import re
 
 from pyinotify import WatchManager, Notifier, NotifierError, EventsCodes, ProcessEvent
 from tincan import StatementList
@@ -261,7 +261,7 @@ def parse_args():
 def process_gzipped_logs(log_dir: str, date_range: Optional[str] = None) -> None:
     """
     Process gzipped log files in the specified directory.
-    
+
     Args:
         log_dir: Path to directory containing log files
         date_range: Optional date range in format YYYYMMDD-YYYYMMDD
