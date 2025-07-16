@@ -16,11 +16,12 @@ services:
   xapi_bridge:
     build: .
     ports:
-      - "9091:9090"
+      - "9090:9090"
     expose:
-      - 9091
+      - 9090
     restart: unless-stopped
     environment:
+      - log_path=${LOG_PATH}
       - log_dir=${LOG_DIR}
       - log_dates=${LOG_DATES}
       - TZ=Europe/Moscow

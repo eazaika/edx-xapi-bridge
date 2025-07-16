@@ -79,7 +79,7 @@ class EnrollmentApiClient(BaseLMSAPIClient):
         try:
             context = event.get('context', {})
             course_id = context.get('course_id')
-            
+
             if not course_id:
                 raise exceptions.XAPIBridgeCourseNotFoundError("ID курса не найден в событии")
 
