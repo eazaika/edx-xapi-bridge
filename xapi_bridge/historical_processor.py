@@ -55,7 +55,9 @@ def save_statements_to_file(statements, output_file):
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             for statement in statements:
-                f.write(json.dumps(statement, ensure_ascii=False) + '\n')
+                # Преобразуем Statement объект в словарь для JSON
+                statement_dict = statement.as_version('1.0.3')
+                f.write(json.dumps(statement_dict, ensure_ascii=False) + '\n')
         logger.info(f"Высказывания сохранены в файл: {output_file}")
     except Exception as e:
         logger.error(f"Ошибка при сохранении в файл: {e}")
@@ -97,13 +99,17 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
             else:
                 # Если файл не указан, выводим в консоль
                 for statement in statements:
-                    print(json.dumps(statement, ensure_ascii=False, indent=2))
+                    # Преобразуем Statement объект в словарь для JSON
+                    statement_dict = statement.as_version('1.0.3')
+                    print(json.dumps(statement_dict, ensure_ascii=False, indent=2))
         else:
             # Разделение на пакеты и отправка в LRS
             for i in range(0, len(statements), batch_size):
                 batch = statements[i:i + batch_size]
                 try:
-                    client.lrs_publisher.publish_statements(batch)
+                    # Создаем StatementList из объектов Statement
+                    statement_list = StatementList(batch)
+                    client.lrs_publisher.publish_statements(statement_list)
                     logger.info(f"Отправлено {len(batch)} утверждений в LRS.")
                 except Exception as e:
                     logger.error(f"Ошибка при отправке пакета в LRS: {e}")
@@ -128,7 +134,7 @@ def read_and_transform_logs(log_file):
         log_file (str): Путь к файлу JSON лога.
 
     Returns:
-        list: Список xAPI утверждений.
+        list: Список xAPI утверждений (объекты Statement).
     """
     statements = []
     with open(log_file, 'r') as f:
@@ -153,7 +159,7 @@ def transform_json_log_entry_to_xapi(log_entry):
         log_entry (dict): Запись из JSON лога.
 
     Returns:
-        dict: xAPI утверждение в формате словаря (или None, если преобразование не удалось).
+        Statement: xAPI утверждение в виде объекта Statement (или None, если преобразование не удалось).
 
     Raises:
         XAPIBridgeSkippedConversion: Если тип события не поддерживается или требует пропуска.
@@ -175,17 +181,12 @@ def transform_json_log_entry_to_xapi(log_entry):
         # Создаем соответствующий statement
         statement = SUPPORTED_EVENT_TYPES[event_type](log_entry)
         
-        # Преобразуем statement в словарь для отправки в LRS
-        statement_dict = statement.as_version('1.0.3')
-        
         # Добавляем стандартные поля xAPI
         moscow_tz = zoneinfo.ZoneInfo('Europe/Moscow')
         moscow_time = datetime.datetime.now(moscow_tz)
-        statement_dict.update({
-            "stored": moscow_time.isoformat()
-        })
+        statement.stored = moscow_time.isoformat()
         
-        return statement_dict
+        return statement
         
     except exceptions.XAPIBridgeSkippedConversion as e:
         logger.info(f"Пропуск события: {str(e)}")
