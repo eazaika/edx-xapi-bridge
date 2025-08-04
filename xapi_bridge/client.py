@@ -64,10 +64,25 @@ class XAPIBridgeLRSPublisher:
             # Преобразуем StatementList в список словарей для корректной сериализации
             statement_dicts = []
             for stmt in statements:
-                if hasattr(stmt, 'as_version'):
-                    statement_dicts.append(stmt.as_version('1.0.3'))
-                else:
-                    statement_dicts.append(stmt)
+                try:
+                    if hasattr(stmt, 'as_version'):
+                        statement_dicts.append(stmt.as_version('1.0.3'))
+                    else:
+                        statement_dicts.append(stmt)
+                except Exception as e:
+                    logger.warning(f"Ошибка при преобразовании Statement в словарь: {e}")
+                    # Попробуем альтернативный способ сериализации
+                    try:
+                        if hasattr(stmt, 'to_dict'):
+                            statement_dicts.append(stmt.to_dict())
+                        elif hasattr(stmt, '__dict__'):
+                            statement_dicts.append(stmt.__dict__)
+                        else:
+                            logger.error(f"Не удалось сериализовать Statement: {type(stmt)}")
+                            continue
+                    except Exception as e2:
+                        logger.error(f"Не удалось сериализовать Statement альтернативным способом: {e2}")
+                        continue
             
             logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
             
@@ -81,12 +96,18 @@ class XAPIBridgeLRSPublisher:
         except (socket.gaierror, ConnectionRefusedError) as e:
             error_msg = f"Ошибка подключения к LRS: {str(e)}"
             logger.error(error_msg)
-            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
+            raise exceptions.XAPIBridgeLRSConnectionError(
+                endpoint=settings.LRS_ENDPOINT,
+                status_code=None
+            ) from e
         except Exception as e:
             error_msg = f"Неожиданная ошибка при отправке в LRS: {str(e)}"
             logger.error(error_msg)
             logger.error(f"Тип исключения: {type(e).__name__}")
-            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
+            raise exceptions.XAPIBridgeLRSConnectionError(
+                endpoint=settings.LRS_ENDPOINT,
+                status_code=None
+            ) from e
 
     def _handle_response(self, response: LRSResponse, statements: StatementList) -> None:
         """Обработка ответа от LRS."""
@@ -95,23 +116,38 @@ class XAPIBridgeLRSPublisher:
             return
 
         try:
-            response_data = json.loads(response.data)
+            if isinstance(response.data, str):
+                response_data = json.loads(response.data)
+            else:
+                response_data = response.data if response.data else {}
         except json.JSONDecodeError:
             response_data = {}
 
-        if self.backend.request_unauthorised(response_data):
+        # Преобразуем response_data в строку для методов бэкенда
+        response_data_str = json.dumps(response_data) if isinstance(response_data, dict) else str(response_data)
+        
+        if self.backend.request_unauthorised(response_data_str):
             error_msg = "Ошибка авторизации в LRS"
             logger.error(error_msg)
-            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg)
+            raise exceptions.XAPIBridgeLRSConnectionError(
+                endpoint=settings.LRS_ENDPOINT,
+                status_code=None
+            )
 
-        if self.backend.response_has_storage_errors(response_data):
-            bad_index = self.backend.parse_error_response_for_bad_statement(response_data)
+        if self.backend.response_has_storage_errors(response_data_str):
+            bad_index = self.backend.parse_error_response_for_bad_statement(response_data_str)
             bad_statement = statements[bad_index] if bad_index is not None else None
             error_msg = f"Ошибка сохранения высказывания: {response_data.get('message', '')}"
             logger.error(error_msg)
+            # Создаем словарь с данными ошибки
+            error_data = {
+                'response_data': response_data,
+                'bad_index': bad_index,
+                'bad_statement': str(bad_statement) if bad_statement else None
+            }
             raise exceptions.XAPIBridgeStatementError(
-                statement=bad_statement,
-                message=error_msg
+                raw_event=error_data,
+                validation_errors={'message': error_msg}
             )
 
 
