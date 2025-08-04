@@ -107,8 +107,15 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
             for i in range(0, len(statements), batch_size):
                 batch = statements[i:i + batch_size]
                 try:
-                    # Создаем StatementList из объектов Statement
-                    statement_list = StatementList(batch)
+                    # Создаем StatementList из объектов Statement (преобразование в словари происходит в клиенте)
+                    logger.debug(f"Создаем StatementList из {len(batch)} высказываний")
+                    try:
+                        statement_list = StatementList(batch)
+                    except Exception as e:
+                        logger.error(f"Ошибка при создании StatementList: {e}")
+                        logger.error(f"Типы объектов в batch: {[type(stmt).__name__ for stmt in batch]}")
+                        raise
+                    
                     client.lrs_publisher.publish_statements(statement_list)
                     logger.info(f"Отправлено {len(batch)} утверждений в LRS.")
                 except Exception as e:

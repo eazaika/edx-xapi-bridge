@@ -58,12 +58,34 @@ class XAPIBridgeLRSPublisher:
             XAPIBridgeStatementError: Ошибка сохранения
         """
         try:
-            response = self.lrs.save_statements(statements)
+            logger.debug(f"Отправляем {len(statements)} высказываний в LRS")
+            logger.debug(f"Тип statements: {type(statements)}")
+            
+            # Преобразуем StatementList в список словарей для корректной сериализации
+            statement_dicts = []
+            for stmt in statements:
+                if hasattr(stmt, 'as_version'):
+                    statement_dicts.append(stmt.as_version('1.0.3'))
+                else:
+                    statement_dicts.append(stmt)
+            
+            logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
+            
+            # Сериализуем список словарей в JSON-строку
+            json_data = json.dumps(statement_dicts, ensure_ascii=False)
+            logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
+            
+            response = self.lrs.save_statements(json_data)
             self._handle_response(response, statements)
             return response
         except (socket.gaierror, ConnectionRefusedError) as e:
             error_msg = f"Ошибка подключения к LRS: {str(e)}"
             logger.error(error_msg)
+            raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
+        except Exception as e:
+            error_msg = f"Неожиданная ошибка при отправке в LRS: {str(e)}"
+            logger.error(error_msg)
+            logger.error(f"Тип исключения: {type(e).__name__}")
             raise exceptions.XAPIBridgeLRSConnectionError(message=error_msg) from e
 
     def _handle_response(self, response: LRSResponse, statements: StatementList) -> None:
