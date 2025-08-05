@@ -7,12 +7,13 @@ import importlib
 import json
 import logging
 import socket
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from tincan import RemoteLRS, StatementList
 from tincan.lrs_response import LRSResponse
 
-from xapi_bridge import exceptions, settings
+import xapi_bridge.exceptions as exceptions
+from xapi_bridge import settings
 from xapi_bridge.lrs_backends.learninglocker import LRSBackend
 
 
@@ -30,12 +31,11 @@ class XAPIBridgeLRSPublisher:
         """Конфигурация подключения к LRS."""
         config = {
             'endpoint': settings.LRS_ENDPOINT,
-            'version': "1.0.1"
         }
 
         if settings.LRS_BASICAUTH_HASH:
             config['auth'] = f"Basic {settings.LRS_BASICAUTH_HASH}"
-        else:
+        elif settings.LRS_USERNAME and settings.LRS_PASSWORD:
             config.update({
                 'username': settings.LRS_USERNAME,
                 'password': settings.LRS_PASSWORD
@@ -51,7 +51,7 @@ class XAPIBridgeLRSPublisher:
             statements: Список xAPI-высказываний
 
         Returns:
-            Ответ от LRS
+            LRSResponse: Ответ от LRS
 
         Raises:
             XAPIBridgeLRSConnectionError: Ошибка подключения
@@ -63,26 +63,41 @@ class XAPIBridgeLRSPublisher:
             
             # Преобразуем StatementList в список словарей для корректной сериализации
             statement_dicts = []
-            for stmt in statements:
+            for i, stmt in enumerate(statements):
                 try:
+                    # Проверяем, что объект является Statement или имеет необходимые методы
                     if hasattr(stmt, 'as_version'):
                         statement_dicts.append(stmt.as_version('1.0.3'))
-                    else:
+                    elif hasattr(stmt, 'to_dict'):
+                        statement_dicts.append(stmt.to_dict())
+                    elif hasattr(stmt, '__dict__'):
+                        statement_dicts.append(stmt.__dict__)
+                    elif isinstance(stmt, dict):
+                        # Если это уже словарь, используем его напрямую
                         statement_dicts.append(stmt)
+                    else:
+                        logger.error(f"Не удалось сериализовать Statement[{i}]: {type(stmt)} - объект не имеет необходимых методов")
+                        continue
                 except Exception as e:
-                    logger.warning(f"Ошибка при преобразовании Statement в словарь: {e}")
+                    logger.warning(f"Ошибка при преобразовании Statement[{i}] в словарь: {e}")
                     # Попробуем альтернативный способ сериализации
                     try:
                         if hasattr(stmt, 'to_dict'):
                             statement_dicts.append(stmt.to_dict())
                         elif hasattr(stmt, '__dict__'):
                             statement_dicts.append(stmt.__dict__)
+                        elif isinstance(stmt, dict):
+                            statement_dicts.append(stmt)
                         else:
-                            logger.error(f"Не удалось сериализовать Statement: {type(stmt)}")
+                            logger.error(f"Не удалось сериализовать Statement[{i}]: {type(stmt)}")
                             continue
                     except Exception as e2:
-                        logger.error(f"Не удалось сериализовать Statement альтернативным способом: {e2}")
+                        logger.error(f"Не удалось сериализовать Statement[{i}] альтернативным способом: {e2}")
                         continue
+            
+            if not statement_dicts:
+                logger.warning("Нет валидных statements для отправки")
+                return LRSResponse(success=True, data="No statements to send")
             
             logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
             

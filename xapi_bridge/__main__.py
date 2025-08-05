@@ -70,6 +70,22 @@ class QueueManager:
             if not self.cache:
                 return
 
+            # Проверяем типы объектов в кэше перед созданием StatementList
+            invalid_statements = []
+            for i, stmt in enumerate(self.cache):
+                if not hasattr(stmt, 'as_version') and not hasattr(stmt, 'to_dict') and not hasattr(stmt, '__dict__') and not isinstance(stmt, dict):
+                    invalid_statements.append((i, type(stmt).__name__))
+            
+            if invalid_statements:
+                logger.error(f"Обнаружены невалидные statements в кэше: {invalid_statements}")
+                # Удаляем невалидные statements из кэша
+                valid_cache = [stmt for stmt in self.cache if hasattr(stmt, 'as_version') or hasattr(stmt, 'to_dict') or hasattr(stmt, '__dict__') or isinstance(stmt, dict)]
+                if not valid_cache:
+                    logger.warning("Нет валидных statements в кэше, пропускаем отправку")
+                    self.cache.clear()
+                    return
+                self.cache = valid_cache
+
             # Создаем StatementList из объектов Statement (преобразование в словари происходит в клиенте)
             logger.debug(f"Создаем StatementList из {len(self.cache)} высказываний")
             try:
