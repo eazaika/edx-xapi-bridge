@@ -102,10 +102,10 @@ class XAPIBridgeLRSPublisher:
             logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
             
             # Сериализуем список словарей в JSON-строку
-            json_data = json.dumps(statement_dicts, ensure_ascii=False)
-            logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
+            # json_data = json.dumps(statement_dicts, ensure_ascii=False)
+            # logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
             
-            response = self.lrs.save_statements(json_data)
+            response = self.lrs.save_statements(statement_dicts)
             self._handle_response(response, statements)
             return response
         except (socket.gaierror, ConnectionRefusedError) as e:

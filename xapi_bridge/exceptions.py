@@ -50,9 +50,9 @@ class XAPIBridgeConfigError(XAPIBridgeBaseException):
 class XAPIBridgeConnectionError(XAPIBridgeBaseException):
     """Ошибка подключения к внешним сервисам."""
 
-    def __init__(self, service_name: str, **kwargs):
+    def __init__(self, service_name: str, context: Optional[Dict] = None):
         message = f"Ошибка подключения к {service_name}"
-        super().__init__(message, kwargs)
+        super().__init__(message, context)
 
 
 class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
@@ -63,11 +63,9 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
             'endpoint': endpoint,
             'status_code': status_code
         }
-        super().__init__(
-            service_name="LRS",
-            message=f"Ошибка связи с LRS ({endpoint}), код: {status_code}",
-            context=context
-        )
+        message = f"Ошибка связи с LRS ({endpoint}), код: {status_code}"
+        super().__init__(service_name="LRS", context=context)
+        self.message = message  # Переопределяем сообщение, если нужно
 
 
 class XAPIBridgeDataError(XAPIBridgeBaseException):
