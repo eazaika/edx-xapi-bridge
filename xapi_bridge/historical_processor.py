@@ -11,6 +11,7 @@ from tincan import StatementList
 import uuid
 import datetime
 import zoneinfo  # для работы с часовыми поясами
+from typing import Any, Dict, List, Optional
 
 from xapi_bridge import client, exceptions, settings
 from xapi_bridge.statements.video import (
@@ -107,8 +108,30 @@ def process_historical_logs(log_file, batch_size=100, test_mode=False, output_fi
             for i in range(0, len(statements), batch_size):
                 batch = statements[i:i + batch_size]
                 try:
-                    # Создаем StatementList из объектов Statement
-                    statement_list = StatementList(batch)
+                    # Проверяем типы объектов в batch перед созданием StatementList
+                    invalid_statements = []
+                    for j, stmt in enumerate(batch):
+                        if not hasattr(stmt, 'as_version') and not hasattr(stmt, 'to_dict') and not hasattr(stmt, '__dict__') and not isinstance(stmt, dict):
+                            invalid_statements.append((j, type(stmt).__name__))
+                    
+                    if invalid_statements:
+                        logger.error(f"Обнаружены невалидные statements в batch: {invalid_statements}")
+                        # Удаляем невалидные statements из batch
+                        valid_batch = [stmt for stmt in batch if hasattr(stmt, 'as_version') or hasattr(stmt, 'to_dict') or hasattr(stmt, '__dict__') or isinstance(stmt, dict)]
+                        if not valid_batch:
+                            logger.warning("Нет валидных statements в batch, пропускаем")
+                            continue
+                        batch = valid_batch
+                    
+                    # Создаем StatementList из объектов Statement (преобразование в словари происходит в клиенте)
+                    logger.debug(f"Создаем StatementList из {len(batch)} высказываний")
+                    try:
+                        statement_list = StatementList(batch)
+                    except Exception as e:
+                        logger.error(f"Ошибка при создании StatementList: {e}")
+                        logger.error(f"Типы объектов в batch: {[type(stmt).__name__ for stmt in batch]}")
+                        raise
+                    
                     client.lrs_publisher.publish_statements(statement_list)
                     logger.info(f"Отправлено {len(batch)} утверждений в LRS.")
                 except Exception as e:
@@ -180,6 +203,11 @@ def transform_json_log_entry_to_xapi(log_entry):
         
         # Создаем соответствующий statement
         statement = SUPPORTED_EVENT_TYPES[event_type](log_entry)
+        
+        # Проверяем, что statement является валидным объектом
+        if not hasattr(statement, 'as_version') and not hasattr(statement, 'to_dict') and not hasattr(statement, '__dict__') and not isinstance(statement, dict):
+            logger.error(f"Конструктор {SUPPORTED_EVENT_TYPES[event_type].__name__} вернул невалидный объект: {type(statement)}")
+            return None
         
         # Добавляем стандартные поля xAPI
         moscow_tz = zoneinfo.ZoneInfo('Europe/Moscow')
