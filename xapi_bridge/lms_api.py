@@ -117,7 +117,11 @@ class EnrollmentApiClient(BaseLMSAPIClient):
                 }
 
                 if settings.UNTI_XAPI:
-                    course_data['2035_id'] = context.get('2035_id', '').strip()
+                    raw_2035_id = context.get('2035_id')
+                    course_data['2035_id'] = (
+                        '' if isinstance(raw_2035_id, bool)
+                        else (str(raw_2035_id).strip() if raw_2035_id is not None else '')
+                    )
 
                 return course_data
 
@@ -137,7 +141,11 @@ class EnrollmentApiClient(BaseLMSAPIClient):
         }
 
         if settings.UNTI_XAPI:
-            data['2035_id'] = response.get('integrate_2035_id', '').strip()
+            raw_integrate_id = response.get('integrate_2035_id')
+            data['2035_id'] = (
+                '' if isinstance(raw_integrate_id, bool)
+                else (str(raw_integrate_id).strip() if raw_integrate_id is not None else '')
+            )
 
         return data
 
@@ -166,9 +174,9 @@ class UserApiClient(BaseLMSAPIClient):
             XAPIBridgeUserNotFoundError: Если пользователь не найден
         """
         try:
-            username = event.get('username')
+            username = str(event.get('username') or '').strip()
             if not username:
-                raise exceptions.XAPIBridgeUserNotFoundError("Username не найден в событии")
+                raise exceptions.XAPIBridgeUserNotFoundError(event, 'unknown')
 
             # Сначала пробуем получить данные через API
             try:
@@ -204,19 +212,23 @@ class UserApiClient(BaseLMSAPIClient):
                 }
 
                 if settings.UNTI_XAPI:
-                    user_data['unti_id'] = event.get('context', {}).get('unti_id', '').strip()
+                    raw_unti_id = event.get('context', {}).get('unti_id')
+                    user_data['unti_id'] = (
+                        '' if isinstance(raw_unti_id, bool)
+                        else (str(raw_unti_id).strip() if raw_unti_id is not None else '')
+                    )
 
                 return user_data
 
         except Exception as e:
             error_msg = f"Ошибка получения данных пользователя: {str(e)}"
             logger.error(error_msg)
-            raise exceptions.XAPIBridgeUserNotFoundError(error_msg) from e
+            raise exceptions.XAPIBridgeUserNotFoundError(event, username or 'unknown') from e
 
     def _parse_response(self, response: Dict) -> Dict[str, str]:
         """Парсинг и валидация ответа API."""
         if not response.get('email'):
-            raise exceptions.XAPIBridgeUserNotFoundError("Невалидный ответ API")
+            raise exceptions.XAPIBridgeUserNotFoundError({'response': response}, '')
 
         data = {
             'email': response['email'],
@@ -224,7 +236,11 @@ class UserApiClient(BaseLMSAPIClient):
         }
 
         if settings.UNTI_XAPI:
-            data['unti_id'] = response.get('unti_id', '').strip()
+            raw_unti_id = response.get('unti_id')
+            data['unti_id'] = (
+                '' if isinstance(raw_unti_id, bool)
+                else (str(raw_unti_id).strip() if raw_unti_id is not None else '')
+            )
 
         return data
 
