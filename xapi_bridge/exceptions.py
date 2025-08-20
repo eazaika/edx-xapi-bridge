@@ -66,6 +66,12 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
         message = f"Ошибка связи с LRS ({endpoint}), код: {status_code}"
         super().__init__(service_name="LRS", context=context)
         self.message = message  # Переопределяем сообщение, если нужно
+    
+    def err_fail(self) -> None:
+        """Обработка после исчерпания попыток повторной отправки."""
+        self.log_error()
+        # Эскалируем как критическую ошибку, чтобы корректно завершить поток/процесс
+        raise XAPIBridgeCriticalError(self.message)
 
 
 class XAPIBridgeDataError(XAPIBridgeBaseException):
