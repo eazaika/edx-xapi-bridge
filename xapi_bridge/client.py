@@ -25,14 +25,24 @@ class XAPIBridgeLRSPublisher:
 
     def __init__(self):
         self.lrs = self._configure_lrs()
+        if settings.UNTI_XAPI:
+            self.lrs_for_unti = self._configure_lrs(unti=True)
         self.backend = LRSBackend()
 
-    def _configure_lrs(self) -> RemoteLRS:
+    def _configure_lrs(self, unti: bool = False) -> RemoteLRS:
         """Конфигурация подключения к LRS."""
         config = {
             'endpoint': settings.LRS_ENDPOINT,
         }
 
+        if unti:
+            if UNTI_INTERNAL_LRS_HASH:
+                config['auth'] = f"Basic {settings.UNTI_INTERNAL_LRS_BASICAUTH_HASH}"
+            else:
+                config.update({
+                    'username': settings.UNTI_INTERNAL_LRS_USERNAME,
+                    'password': settings.UNTI_INTERNAL_LRS_PASSWORD
+                )}
         if settings.LRS_BASICAUTH_HASH:
             config['auth'] = f"Basic {settings.LRS_BASICAUTH_HASH}"
         elif settings.LRS_USERNAME and settings.LRS_PASSWORD:
@@ -43,13 +53,13 @@ class XAPIBridgeLRSPublisher:
 
         return RemoteLRS(**config)
 
-    def publish_statements(self, statements: StatementList) -> LRSResponse:
+    def publish_statements(self, statements: StatementList, unti: bool = False) -> LRSResponse:
         """
         Отправка пакета высказываний в LRS.
 
         Args:
             statements: Список xAPI-высказываний
-
+            unti: отправлять ли в спец.хранилище для UNTI для последующей обработки
         Returns:
             LRSResponse: Ответ от LRS
 
@@ -105,7 +115,10 @@ class XAPIBridgeLRSPublisher:
             # json_data = json.dumps(statement_dicts, ensure_ascii=False)
             # logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
 
-            response = self.lrs.save_statements(statement_dicts)
+            if unti:
+                response = self.lrs_for_unti.save_statements(statements)
+            else:
+                response = self.lrs.save_statements(statements)
             self._handle_response(response, statements)
             return response
         except exceptions.XAPIBridgeStatementError:

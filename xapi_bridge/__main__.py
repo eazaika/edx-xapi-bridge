@@ -25,6 +25,7 @@ from tincan import StatementList
 
 from xapi_bridge import client, converter, exceptions, settings
 from xapi_bridge.constants import OPENEDX_OAUTH2_TOKEN_URL
+from xapi_bridge.converter import check_course_unti_integration_status
 from xapi_bridge.historical_processor import process_historical_logs
 
 if settings.HTTP_PUBLISH_STATUS:
@@ -64,7 +65,7 @@ class QueueManager:
         if len(self.cache) >= settings.PUBLISH_MAX_PAYLOAD:
             self.publish()
 
-    def publish(self) -> None:
+    def publish(self, unti: bool = False) -> None:
         """Отправка высказываний в LRS."""
         with self.cache_lock:
             if not self.cache:
@@ -75,7 +76,7 @@ class QueueManager:
             for i, stmt in enumerate(self.cache):
                 if not hasattr(stmt, 'as_version') and not hasattr(stmt, 'to_dict') and not hasattr(stmt, '__dict__') and not isinstance(stmt, dict):
                     invalid_statements.append((i, type(stmt).__name__))
-            
+
             if invalid_statements:
                 logger.error(f"Обнаружены невалидные statements в кэше: {invalid_statements}")
                 # Удаляем невалидные statements из кэша
@@ -97,8 +98,10 @@ class QueueManager:
 
             while statements:
                 try:
-                    client.lrs_publisher.publish_statements(statements)
+                    client.lrs_publisher.publish_statements(statements, unti)
                     self.total_published += len(statements)
+                    if unti:
+                        logger.info(f"В промежуточное хранилище UNTI")
                     logger.info(f"Отправлено {self.total_published} высказываний")
                     self._check_benchmark()
                     break
@@ -152,6 +155,7 @@ class TailHandler(ProcessEvent):
         self.ifp = open(filename, 'r', 1)
         self.ifp.seek(0, 2)
         self.publish_queue = QueueManager()
+        self.publish_queue_unti = QueueManager()
         self.race_buffer = ''
 
     def __enter__(self):
@@ -159,7 +163,9 @@ class TailHandler(ProcessEvent):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.publish_queue.publish()
+        self.publish_queue_unti.publish(unti=True)
         self.publish_queue.destroy()
+        self.publish_queue_unti.destroy()
         self.ifp.close()
 
     def check_NOT_DAMAGED(self, event) -> Any:
@@ -190,6 +196,14 @@ class TailHandler(ProcessEvent):
                 statements = converter.to_xapi(event)
                 if statements:
                     for stmt in statements:
+                        # Если интеграция с UNTI, то проверяем курс на интеграцию
+                        if settings.UNTI_XAPI:
+                            course_key = stmt['context']['course_id']
+                            if check_course_unti_integration_status(course_key):
+                                # и отправляем в промежуточное хранилище для обработки
+                                self.publish_queue_unti(stmt)
+
+                        # Все высказывания в любом случае отправляем в осн.хранилище
                         self.publish_queue.push(stmt)
             except json.JSONDecodeError as e:
                 logger.warning(f"Ошибка json-конвертации события: {e}. Событие {event}")

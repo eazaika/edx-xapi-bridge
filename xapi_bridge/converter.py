@@ -4,6 +4,7 @@
 """
 
 import logging
+import requests
 from typing import Dict, Optional, Tuple
 
 from xapi_bridge import exceptions, settings
@@ -128,3 +129,34 @@ def _create_statement(statement_class, evt: Dict) -> Tuple[base.LMSTrackingLogSt
             raw_event=evt,
             validation_errors=e
         ) from e
+
+def check_course_unti_integration_status(course_key: str) -> Optional[bool]:
+    """
+    Проверяет статус интеграции курса с UNTI с использованием API.
+
+    Args:
+        course_key: ID курса.
+
+    Returns:
+        True, если курс интегрирован, False, если не интегрирован, None, если произошла ошибка.
+    """
+    api_url = settings.UNTI_BRIDGE_API + f"/course/{course_key}/unti_status"
+
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()  # Raises HTTPError for bad responses (4xx or 5xx)
+
+        if response.text.lower() == "true":
+            return True
+        elif response.text.lower() == "false":
+            return False
+        else:
+            logger.error(f"Предупреждение: Неожиданный ответ API для курса {course_key}: {response.text}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Ошибка при проверке статуса интеграции курса {course_key}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка при обработке ответа API для курса {course_key}: {e}")
+        return None
