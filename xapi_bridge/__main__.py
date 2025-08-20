@@ -53,17 +53,20 @@ class QueueManager:
         if self.publish_timer:
             self.publish_timer.cancel()
 
-    def push(self, stmt) -> None:
+    def push(self, stmt, unti: bool = False) -> None:
         """Добавление высказывания в очередь."""
         with self.cache_lock:
             self.cache.append(stmt)
 
         if len(self.cache) == 1 and settings.PUBLISH_MAX_WAIT_TIME > 0:
-            self.publish_timer = threading.Timer(settings.PUBLISH_MAX_WAIT_TIME, self.publish)
+            self.publish_timer = threading.Timer(
+                settings.PUBLISH_MAX_WAIT_TIME,
+                lambda: self.publish(unti)
+            )
             self.publish_timer.start()
 
         if len(self.cache) >= settings.PUBLISH_MAX_PAYLOAD:
-            self.publish()
+            self.publish(unti)
 
     def publish(self, unti: bool = False) -> None:
         """Отправка высказываний в LRS."""
@@ -198,10 +201,10 @@ class TailHandler(ProcessEvent):
                     for stmt in statements:
                         # Если интеграция с UNTI, то проверяем курс на интеграцию
                         if settings.UNTI_XAPI:
-                            course_key = stmt['context']['course_id']
+                            course_key = stmt.course_key()
                             if check_course_unti_integration_status(course_key):
                                 # и отправляем в промежуточное хранилище для обработки
-                                self.publish_queue_unti(stmt)
+                                self.publish_queue_unti.push(stmt, unti = True)
 
                         # Все высказывания в любом случае отправляем в осн.хранилище
                         self.publish_queue.push(stmt)

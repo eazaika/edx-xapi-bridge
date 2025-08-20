@@ -85,7 +85,22 @@ HTTP_PUBLISH_PORT: int = 9090
 # =============================================
 
 UNTI_XAPI: bool = False
+UNTI_INTERNAL_LRS_USERNAME: str = ''
+UNTI_INTERNAL_LRS_PASSWORD: str = ''
+UNTI_INTERNAL_LRS_BASICAUTH_HASH: str = ''
+UNTI_BRIDGE_API: str = '127.0.0.1'
+
 UNTI_XAPI_EXT_URL: str = 'https://my.2035.university/xapi-extensions'
+
+# =============================================
+#  Настройки подключения к БД для UNTI ID
+# =============================================
+
+DB_HOST: str = '127.0.0.1'
+DB_PORT: int = 3306
+DB_DATABASE = 'xapi_bridge'
+DB_USERNAME: str = 'xapi_bridge'
+DB_PASSWORD: str = 'PASSWORD'
 
 # =============================================
 #  Тестовые настройки

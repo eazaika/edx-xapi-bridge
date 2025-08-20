@@ -36,14 +36,14 @@ class XAPIBridgeLRSPublisher:
         }
 
         if unti:
-            if UNTI_INTERNAL_LRS_HASH:
+            if settings.UNTI_INTERNAL_LRS_BASICAUTH_HASH:
                 config['auth'] = f"Basic {settings.UNTI_INTERNAL_LRS_BASICAUTH_HASH}"
             else:
                 config.update({
                     'username': settings.UNTI_INTERNAL_LRS_USERNAME,
                     'password': settings.UNTI_INTERNAL_LRS_PASSWORD
-                )}
-        if settings.LRS_BASICAUTH_HASH:
+                })
+        elif settings.LRS_BASICAUTH_HASH:
             config['auth'] = f"Basic {settings.LRS_BASICAUTH_HASH}"
         elif settings.LRS_USERNAME and settings.LRS_PASSWORD:
             config.update({

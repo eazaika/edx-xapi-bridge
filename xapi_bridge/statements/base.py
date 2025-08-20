@@ -4,6 +4,7 @@
 
 from copy import deepcopy
 import json
+import logging
 from typing import Dict, Optional, Any
 
 from tincan import (
@@ -12,6 +13,8 @@ from tincan import (
 )
 
 from xapi_bridge import constants, exceptions, lms_api, settings
+
+logger = logging.getLogger(__name__)
 
 
 class LMSTrackingLogStatement(Statement):
@@ -66,6 +69,13 @@ class LMSTrackingLogStatement(Statement):
             name=settings.ORG_NAME,
             mbox=f'mailto:{settings.ORG_EMAIL}',
         )
+
+    def course_key(self) -> Optional[str]:
+        try:
+            return self._context.context_activities._parent[0].id.split('/')[-1]
+        except Exception as e:
+            logger.error(e)
+            return None
 
     def get_event_data(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """Извлекает и парсит данные события в зависимости от источника."""
