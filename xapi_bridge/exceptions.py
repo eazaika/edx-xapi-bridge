@@ -66,6 +66,12 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
         message = f"Ошибка связи с LRS ({endpoint}), код: {status_code}"
         super().__init__(service_name="LRS", context=context)
         self.message = message  # Переопределяем сообщение, если нужно
+    
+    def err_fail(self) -> None:
+        """Обработка после исчерпания попыток повторной отправки."""
+        self.log_error()
+        # Эскалируем как критическую ошибку, чтобы корректно завершить поток/процесс
+        raise XAPIBridgeCriticalError(self.message)
 
 
 class XAPIBridgeDataError(XAPIBridgeBaseException):
@@ -97,7 +103,7 @@ class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
 class XAPIBridgeStatementError(XAPIBridgeDataError):
     """Ошибка преобразования или валидации xAPI-высказывания."""
 
-    def __init__(self, raw_event: Dict, validation_errors: Dict):
+    def __init__(self, raw_event: Dict, validation_errors: Dict, statement: Optional[Any] = None):
         context = {
             'raw_event': raw_event,
             'validation_errors': validation_errors
@@ -106,6 +112,8 @@ class XAPIBridgeStatementError(XAPIBridgeDataError):
             message=f"Некорректное xAPI-высказывание: {validation_errors}",
             context=context
         )
+        # Храним проблемное высказывание для его удаления из батча на верхнем уровне
+        self.statement = statement
 
 
 class XAPIBridgeStatementConversionError(XAPIBridgeDataError):

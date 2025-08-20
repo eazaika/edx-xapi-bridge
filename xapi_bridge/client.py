@@ -108,6 +108,9 @@ class XAPIBridgeLRSPublisher:
             response = self.lrs.save_statements(statement_dicts)
             self._handle_response(response, statements)
             return response
+        except exceptions.XAPIBridgeStatementError:
+            # Пробрасываем дальше, чтобы верхний уровень мог удалить проблемное высказывание
+            raise
         except (socket.gaierror, ConnectionRefusedError) as e:
             error_msg = f"Ошибка подключения к LRS: {str(e)}"
             logger.error(error_msg)
@@ -162,9 +165,11 @@ class XAPIBridgeLRSPublisher:
             }
             raise exceptions.XAPIBridgeStatementError(
                 raw_event=error_data,
-                validation_errors={'message': error_msg}
+                validation_errors={'message': error_msg},
+                statement=bad_statement
             )
 
 
 # Инициализация клиента по умолчанию
 lrs_publisher = XAPIBridgeLRSPublisher()
+
