@@ -103,7 +103,7 @@ class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
 class XAPIBridgeStatementError(XAPIBridgeDataError):
     """Ошибка преобразования или валидации xAPI-высказывания."""
 
-    def __init__(self, raw_event: Dict, validation_errors: Dict):
+    def __init__(self, raw_event: Dict, validation_errors: Dict, statement: Optional[Any] = None):
         context = {
             'raw_event': raw_event,
             'validation_errors': validation_errors
@@ -112,6 +112,8 @@ class XAPIBridgeStatementError(XAPIBridgeDataError):
             message=f"Некорректное xAPI-высказывание: {validation_errors}",
             context=context
         )
+        # Храним проблемное высказывание для его удаления из батча на верхнем уровне
+        self.statement = statement
 
 
 class XAPIBridgeStatementConversionError(XAPIBridgeDataError):
