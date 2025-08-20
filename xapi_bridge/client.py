@@ -7,12 +7,13 @@ import importlib
 import json
 import logging
 import socket
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from tincan import RemoteLRS, StatementList
 from tincan.lrs_response import LRSResponse
 
-from xapi_bridge import exceptions, settings
+import xapi_bridge.exceptions as exceptions
+from xapi_bridge import settings
 from xapi_bridge.lrs_backends.learninglocker import LRSBackend
 
 
@@ -30,12 +31,11 @@ class XAPIBridgeLRSPublisher:
         """Конфигурация подключения к LRS."""
         config = {
             'endpoint': settings.LRS_ENDPOINT,
-            'version': "1.0.1"
         }
 
         if settings.LRS_BASICAUTH_HASH:
             config['auth'] = f"Basic {settings.LRS_BASICAUTH_HASH}"
-        else:
+        elif settings.LRS_USERNAME and settings.LRS_PASSWORD:
             config.update({
                 'username': settings.LRS_USERNAME,
                 'password': settings.LRS_PASSWORD
@@ -51,7 +51,7 @@ class XAPIBridgeLRSPublisher:
             statements: Список xAPI-высказываний
 
         Returns:
-            Ответ от LRS
+            LRSResponse: Ответ от LRS
 
         Raises:
             XAPIBridgeLRSConnectionError: Ошибка подключения
@@ -63,32 +63,64 @@ class XAPIBridgeLRSPublisher:
             
             # Преобразуем StatementList в список словарей для корректной сериализации
             statement_dicts = []
-            for stmt in statements:
-                if hasattr(stmt, 'as_version'):
-                    statement_dicts.append(stmt.as_version('1.0.3'))
-                else:
-                    statement_dicts.append(stmt)
+            for i, stmt in enumerate(statements):
+                try:
+                    # Проверяем, что объект является Statement или имеет необходимые методы
+                    if hasattr(stmt, 'as_version'):
+                        statement_dicts.append(stmt.as_version('1.0.3'))
+                    elif hasattr(stmt, 'to_dict'):
+                        statement_dicts.append(stmt.to_dict())
+                    elif hasattr(stmt, '__dict__'):
+                        statement_dicts.append(stmt.__dict__)
+                    elif isinstance(stmt, dict):
+                        # Если это уже словарь, используем его напрямую
+                        statement_dicts.append(stmt)
+                    else:
+                        logger.error(f"Не удалось сериализовать Statement[{i}]: {type(stmt)} - объект не имеет необходимых методов")
+                        continue
+                except Exception as e:
+                    logger.warning(f"Ошибка при преобразовании Statement[{i}] в словарь: {e}")
+                    # Попробуем альтернативный способ сериализации
+                    try:
+                        if hasattr(stmt, 'to_dict'):
+                            statement_dicts.append(stmt.to_dict())
+                        elif hasattr(stmt, '__dict__'):
+                            statement_dicts.append(stmt.__dict__)
+                        elif isinstance(stmt, dict):
+                            statement_dicts.append(stmt)
+                        else:
+                            logger.error(f"Не удалось сериализовать Statement[{i}]: {type(stmt)}")
+                            continue
+                    except Exception as e2:
+                        logger.error(f"Не удалось сериализовать Statement[{i}] альтернативным способом: {e2}")
+                        continue
+            
+            if not statement_dicts:
+                logger.warning("Нет валидных statements для отправки")
+                return LRSResponse(success=True, data="No statements to send")
             
             logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
             
             # Сериализуем список словарей в JSON-строку
-            json_data = json.dumps(statement_dicts, ensure_ascii=False)
-            logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
+            # json_data = json.dumps(statement_dicts, ensure_ascii=False)
+            # logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
             
-            response = self.lrs.save_statements(json_data)
+            response = self.lrs.save_statements(statement_dicts)
             self._handle_response(response, statements)
             return response
         except exceptions.XAPIBridgeStatementError:
-            # Пробрасываем дальше, чтобы вызывающий код мог обработать и удалить плохое высказывание
+            # Пробрасываем дальше, чтобы верхний уровень мог удалить проблемное высказывание
             raise
         except (socket.gaierror, ConnectionRefusedError) as e:
-            logger.error(f"Ошибка подключения к LRS: {str(e)}")
+            error_msg = f"Ошибка подключения к LRS: {str(e)}"
+            logger.error(error_msg)
             raise exceptions.XAPIBridgeLRSConnectionError(
                 endpoint=settings.LRS_ENDPOINT,
                 status_code=None
             ) from e
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при отправке в LRS: {str(e)}")
+            error_msg = f"Неожиданная ошибка при отправке в LRS: {str(e)}"
+            logger.error(error_msg)
             logger.error(f"Тип исключения: {type(e).__name__}")
             raise exceptions.XAPIBridgeLRSConnectionError(
                 endpoint=settings.LRS_ENDPOINT,
@@ -109,11 +141,12 @@ class XAPIBridgeLRSPublisher:
         except json.JSONDecodeError:
             response_data = {}
 
-        # Строковое представление для бэкенда (ожидает строку)
+        # Преобразуем response_data в строку для методов бэкенда
         response_data_str = json.dumps(response_data) if isinstance(response_data, dict) else str(response_data)
-
+        
         if self.backend.request_unauthorised(response_data_str):
-            logger.error("Ошибка авторизации в LRS")
+            error_msg = "Ошибка авторизации в LRS"
+            logger.error(error_msg)
             raise exceptions.XAPIBridgeLRSConnectionError(
                 endpoint=settings.LRS_ENDPOINT,
                 status_code=None
@@ -122,10 +155,9 @@ class XAPIBridgeLRSPublisher:
         if self.backend.response_has_storage_errors(response_data_str):
             bad_index = self.backend.parse_error_response_for_bad_statement(response_data_str)
             bad_statement = statements[bad_index] if bad_index is not None else None
-            warnings = (response_data or {}).get('warnings') if isinstance(response_data, dict) else None
-            warning_text = warnings[0] if isinstance(warnings, list) and warnings else ''
-            error_msg = f"Ошибка сохранения высказывания: {warning_text}"
+            error_msg = f"Ошибка сохранения высказывания: {response_data.get('message', '')}"
             logger.error(error_msg)
+            # Создаем словарь с данными ошибки
             error_data = {
                 'response_data': response_data,
                 'bad_index': bad_index,
@@ -133,9 +165,11 @@ class XAPIBridgeLRSPublisher:
             }
             raise exceptions.XAPIBridgeStatementError(
                 raw_event=error_data,
-                validation_errors={'message': error_msg}
+                validation_errors={'message': error_msg},
+                statement=bad_statement
             )
 
 
 # Инициализация клиента по умолчанию
 lrs_publisher = XAPIBridgeLRSPublisher()
+
