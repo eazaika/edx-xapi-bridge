@@ -83,7 +83,7 @@ class LMSTrackingLogStatement(Statement):
             username = event['context']['module'].get('username', 'anonymous')
 
         try:
-            user_info = self._get_edx_user_info(username)
+            user_info = self.user_api_client.get_edx_user_info(event)
         except exceptions.XAPIBridgeUserNotFoundError:
             return None
 

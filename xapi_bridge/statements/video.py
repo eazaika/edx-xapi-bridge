@@ -25,7 +25,18 @@ VIDEO_STATE_CHANGE_VERB_MAP = {
         'id': constants.XAPI_VERB_WATCHED,
         'display': LanguageMap({'en-US': 'watched', 'ru-RU': 'просмотр видео'})
     },
-    # ... остальные элементы словаря сохраняются аналогично ...
+    'play_video': {
+        'id': constants.XAPI_VERB_PLAYED,
+        'display': LanguageMap({'en-US': 'played', 'ru-RU': 'воспроизведение видео'})
+    },
+    'pause_video': {
+        'id': constants.XAPI_VERB_PAUSED,
+        'display': LanguageMap({'en-US': 'paused', 'ru-RU': 'пауза видео'})
+    },
+    'stop_video': {
+        'id': constants.XAPI_VERB_EXITED,
+        'display': LanguageMap({'en-US': 'stopped', 'ru-RU': 'остановка видео'})
+    },
 }
 
 class VideoStatement(block.BaseCoursewareBlockStatement):
@@ -93,7 +104,7 @@ class VideoStatement(block.BaseCoursewareBlockStatement):
         Raises:
             XAPIBridgeSkippedConversion: For unhandled event types
         """
-        event_type = event['event_type']
+        event_type = event['event_type'].replace("xblock-video.", "").strip()
         try:
             verb_props = VIDEO_STATE_CHANGE_VERB_MAP[event_type]
         except KeyError as exc:

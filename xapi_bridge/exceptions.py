@@ -50,9 +50,9 @@ class XAPIBridgeConfigError(XAPIBridgeBaseException):
 class XAPIBridgeConnectionError(XAPIBridgeBaseException):
     """Ошибка подключения к внешним сервисам."""
 
-    def __init__(self, service_name: str, **kwargs):
+    def __init__(self, service_name: str, context: Optional[Dict] = None):
         message = f"Ошибка подключения к {service_name}"
-        super().__init__(message, kwargs)
+        super().__init__(message, context)
 
 
 class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
@@ -63,15 +63,33 @@ class XAPIBridgeLRSConnectionError(XAPIBridgeConnectionError):
             'endpoint': endpoint,
             'status_code': status_code
         }
-        super().__init__(
-            service_name="LRS",
-            message=f"Ошибка связи с LRS ({endpoint}), код: {status_code}",
-            context=context
-        )
+        message = f"Ошибка связи с LRS ({endpoint}), код: {status_code}"
+        super().__init__(service_name="LRS", context=context)
+        self.message = message  # Переопределяем сообщение, если нужно
+    
+    def err_fail(self) -> None:
+        """Обработка после исчерпания попыток повторной отправки."""
+        self.log_error()
+        # Эскалируем как критическую ошибку, чтобы корректно завершить поток/процесс
+        raise XAPIBridgeCriticalError(self.message)
 
 
 class XAPIBridgeDataError(XAPIBridgeBaseException):
     """Ошибка обработки данных."""
+
+
+class XAPIBridgeDataError(XAPIBridgeBaseException):
+    """Ошибка обработки данных."""
+
+
+class XAPIBridgeCourseNotFoundError(XAPIBridgeBaseException):
+    """Исключение при отсутствии курса в LMS."""
+
+    def __init__(self, message: str, course_id: str = None):
+        context = {'course_id': course_id} if course_id else {}
+        super().__init__(message=message, context=context)
+
+
 
 class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
     """Exception class for no LMS user found."""
@@ -85,7 +103,7 @@ class XAPIBridgeUserNotFoundError(XAPIBridgeBaseException):
 class XAPIBridgeStatementError(XAPIBridgeDataError):
     """Ошибка преобразования или валидации xAPI-высказывания."""
 
-    def __init__(self, raw_event: Dict, validation_errors: Dict):
+    def __init__(self, raw_event: Dict, validation_errors: Dict, statement: Optional[Any] = None):
         context = {
             'raw_event': raw_event,
             'validation_errors': validation_errors
@@ -94,6 +112,8 @@ class XAPIBridgeStatementError(XAPIBridgeDataError):
             message=f"Некорректное xAPI-высказывание: {validation_errors}",
             context=context
         )
+        # Храним проблемное высказывание для его удаления из батча на верхнем уровне
+        self.statement = statement
 
 
 class XAPIBridgeStatementConversionError(XAPIBridgeDataError):

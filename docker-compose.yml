@@ -5,6 +5,12 @@ volumes:
         type: ext4
         device: "/var/log/logs_for_xapi_docker"
         o: bind
+  old_logs:
+    driver: local
+    driver_opts:
+        type: ext4
+        device: "/mnt/old_logs"
+        o: bind
 
 services:
   xapi_bridge:
@@ -16,9 +22,12 @@ services:
     restart: unless-stopped
     environment:
       - log_path=${LOG_PATH}
+      - log_dir=${LOG_DIR}
+      - log_dates=${LOG_DATES}
       - TZ=Europe/Moscow
     volumes:
       - tracking_logs:/var/log
+      - old_logs:/var/old_logs
     develop:
       watch:
         - action: sync+restart

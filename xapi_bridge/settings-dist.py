@@ -45,6 +45,9 @@ OPENEDX_ENROLLMENT_API_URI: str = f'{OPENEDX_PLATFORM_URI}/api/enrollment/v1/'
 #  Параметры публикации событий
 # =============================================
 
+# Путь к файлу с событиями
+TRACKING_LOG = '/edx/var/log/tracking/tracking.log'
+
 # Максимальное время ожидания перед отправкой (сек)
 PUBLISH_MAX_WAIT_TIME: int = 60
 
@@ -120,4 +123,3 @@ def get_env_setting(setting: str, default: Any = None) -> Any:
 
 # Пример использования:
 # LRS_ENDPOINT = get_env_setting('LRS_ENDPOINT', 'https://backup-lrs.example.org/xapi/')
-
