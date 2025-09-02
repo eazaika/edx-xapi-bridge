@@ -28,7 +28,8 @@ from xapi_bridge.statements.course import (
 from xapi_bridge.statements.attachment import AttachmentStatement
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+level = logging.DEBUG if settings.DEBUG_MODE else logging.INFO
+logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Список поддерживаемых типов событий
