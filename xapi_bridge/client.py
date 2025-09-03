@@ -131,6 +131,7 @@ class XAPIBridgeLRSPublisher:
         """Обработка ответа от LRS."""
         if response.success:
             logger.info(f"Успешно отправлено {len(statements)} высказываний")
+            logger.debug(f"Успешно отправленные: {response.request.content}")
             return
 
         try:
@@ -141,9 +142,24 @@ class XAPIBridgeLRSPublisher:
         except json.JSONDecodeError:
             response_data = {}
 
+        logger.debug(f"Success {response.success}")
+
+        logger.debug(response.request.headers)
+        logger.debug(response.request.method)
+        logger.debug(response.request.resource)
+        logger.debug(response.request.ignore404)
+        logger.debug(response.request.query_params)
+        logger.debug(response.request.content)
+
+        logger.debug(response.response.status)
+        logger.debug(response.response.reason)
+        logger.debug(response.response.read())
+        logger.debug(response.content)
+
         # Преобразуем response_data в строку для методов бэкенда
         response_data_str = json.dumps(response_data) if isinstance(response_data, dict) else str(response_data)
-        
+        logger.debug(response_data_str)
+
         if self.backend.request_unauthorised(response_data_str):
             error_msg = "Ошибка авторизации в LRS"
             logger.error(error_msg)
@@ -169,6 +185,9 @@ class XAPIBridgeLRSPublisher:
                 statement=bad_statement
             )
 
+        error_msg = (f"Неопознанная ошибка отправки в LRS: {response.response.status} -"
+                    + f" {response_data_str}. Высказывания: {response.request.content}")
+        logger.error(error_msg)
 
 # Инициализация клиента по умолчанию
 lrs_publisher = XAPIBridgeLRSPublisher()

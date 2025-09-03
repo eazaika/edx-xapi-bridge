@@ -94,7 +94,7 @@ class QueueManager:
                 logger.error(f"Ошибка при создании StatementList: {e}")
                 logger.error(f"Типы объектов в кэше: {[type(stmt).__name__ for stmt in self.cache]}")
                 raise
-            
+
             while statements:
                 try:
                     client.lrs_publisher.publish_statements(statements)
@@ -106,6 +106,11 @@ class QueueManager:
                     self._handle_connection_error(e, statements)
                 except exceptions.XAPIBridgeStatementError as e:
                     self._handle_storage_error(e, statements)
+                except Exception as e:
+                    # Обработка всех остальных непредвиденных ошибок
+                    logger.error(f"Произошла непредвиденная ошибка во время публикации высказываний: {e}")
+                    for statement in statements:
+                        logger.error(f"Неотправленное высказывание: {statement}")
 
             self.cache.clear()
             if self.publish_timer:
