@@ -79,16 +79,14 @@ class LMSTrackingLogStatement(Statement):
             username = event['username']
             if not username:
                 username = event['event']['username']
+            if username == 'anonymous':
+                raise KeyError
         except KeyError:
             username = event['context']['module'].get('username', 'anonymous')
 
         try:
             user_info = self.user_api_client.get_edx_user_info(event)
         except exceptions.XAPIBridgeUserNotFoundError:
-            return None
-
-        # Обработка анонимных пользователей
-        if not user_info.get('email'):
             return None
 
         # Конфигурация для системы UNTI

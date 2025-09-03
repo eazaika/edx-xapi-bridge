@@ -173,52 +173,34 @@ class UserApiClient(BaseLMSAPIClient):
         Raises:
             XAPIBridgeUserNotFoundError: Если пользователь не найден
         """
+        username = str(event.get('username') or '').strip()
+        if not username or username == 'anonymous':
+            raise exceptions.XAPIBridgeUserNotFoundError(event, 'unknown')
+
+        # Пробуем получить данные через API
         try:
-            username = str(event.get('username') or '').strip()
-            if not username:
-                raise exceptions.XAPIBridgeUserNotFoundError(event, 'unknown')
+            cache_key = f"{self.cache_prefix}user_{username}"
 
-            # Сначала пробуем получить данные через API
-            try:
-                cache_key = f"{self.cache_prefix}user_{username}"
+            # Попытка получить данные из кэша
+            if self.cache:
+                try:
+                    cached = self.cache.get(cache_key)
+                    if cached:
+                        return cached
+                except Exception as e:
+                    logger.warning("Ошибка чтения из кэша: %s", e)
 
-                # Попытка получить данные из кэша
-                if self.cache:
-                    try:
-                        cached = self.cache.get(cache_key)
-                        if cached:
-                            return cached
-                    except Exception as e:
-                        logger.warning("Ошибка чтения из кэша: %s", e)
+            response = self.client.accounts(username).get()
+            user_data = self._parse_response(response)
 
-                response = self.client.accounts(username).get()
-                user_data = self._parse_response(response)
+            # Кэширование на 5 минут
+            if self.cache and user_data:
+                try:
+                    self.cache.set(cache_key, user_data, expire=300)
+                except Exception as e:
+                    logger.warning("Ошибка записи в кэш: %s", e)
 
-                # Кэширование на 5 минут
-                if self.cache and user_data:
-                    try:
-                        self.cache.set(cache_key, user_data, expire=300)
-                    except Exception as e:
-                        logger.warning("Ошибка записи в кэш: %s", e)
-
-                return user_data
-
-            except (SlumberBaseException, ConnectionError, Timeout, HttpClientError) as e:
-                logger.warning(f"Не удалось получить данные пользователя через API: {str(e)}")
-                # Если API недоступен, используем данные из события
-                user_data = {
-                    'email': f"{username}@etu.ru",  # Формируем email на основе username
-                    'fullname': username,  # Используем username как имя
-                }
-
-                if settings.UNTI_XAPI:
-                    raw_unti_id = event.get('context', {}).get('unti_id')
-                    user_data['unti_id'] = (
-                        '' if isinstance(raw_unti_id, bool)
-                        else (str(raw_unti_id).strip() if raw_unti_id is not None else '')
-                    )
-
-                return user_data
+            return user_data
 
         except Exception as e:
             error_msg = f"Ошибка получения данных пользователя: {str(e)}"
