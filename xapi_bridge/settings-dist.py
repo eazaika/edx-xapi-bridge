@@ -45,9 +45,6 @@ OPENEDX_ENROLLMENT_API_URI: str = f'{OPENEDX_PLATFORM_URI}/api/enrollment/v1/'
 #  Параметры публикации событий
 # =============================================
 
-# Путь к файлу с событиями
-TRACKING_LOG = '/edx/var/log/tracking/tracking.log'
-
 # Максимальное время ожидания перед отправкой (сек)
 PUBLISH_MAX_WAIT_TIME: int = 60
 

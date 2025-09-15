@@ -106,7 +106,8 @@ class XAPIBridgeStatementError(XAPIBridgeDataError):
     def __init__(self, raw_event: Dict, validation_errors: Dict, statement: Optional[Any] = None):
         context = {
             'raw_event': raw_event,
-            'validation_errors': validation_errors
+            'validation_errors': validation_errors,
+            'statement': statement
         }
         super().__init__(
             message=f"Некорректное xAPI-высказывание: {validation_errors}",

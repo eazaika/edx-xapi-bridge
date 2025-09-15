@@ -76,16 +76,18 @@ class LMSTrackingLogStatement(Statement):
     def get_actor(self, event: Dict[str, Any]) -> Optional[Agent]:
         """Создает xAPI Agent на основе данных пользователя."""
         try:
-            username = event['username']
+            username = event.get('username', '')
             if not username:
-                username = event['event']['username']
-            if username == 'anonymous':
-                raise KeyError
-        except KeyError:
-            username = event['context']['module'].get('username', 'anonymous')
+                username = event.get('event', {}).get('username')
+
+            if not username or username.strip() == '' or username == 'anonymous':
+                raise KeyError("Username is missing or invalid or anonymous")
+
+        except KeyError as e:
+            username = event['context']['module'].get('username', '')
 
         try:
-            user_info = self.user_api_client.get_edx_user_info(event)
+            user_info = self._get_edx_user_info(username)
         except exceptions.XAPIBridgeUserNotFoundError:
             return None
 

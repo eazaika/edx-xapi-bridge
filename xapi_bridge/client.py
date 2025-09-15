@@ -60,7 +60,7 @@ class XAPIBridgeLRSPublisher:
         try:
             logger.debug(f"Отправляем {len(statements)} высказываний в LRS")
             logger.debug(f"Тип statements: {type(statements)}")
-            
+
             # Преобразуем StatementList в список словарей для корректной сериализации
             statement_dicts = []
             for i, stmt in enumerate(statements):
@@ -94,17 +94,17 @@ class XAPIBridgeLRSPublisher:
                     except Exception as e2:
                         logger.error(f"Не удалось сериализовать Statement[{i}] альтернативным способом: {e2}")
                         continue
-            
+
             if not statement_dicts:
                 logger.warning("Нет валидных statements для отправки")
                 return LRSResponse(success=True, data="No statements to send")
-            
+
             logger.debug(f"Преобразовано в {len(statement_dicts)} словарей")
-            
+
             # Сериализуем список словарей в JSON-строку
             # json_data = json.dumps(statement_dicts, ensure_ascii=False)
             # logger.debug(f"Сериализовано в JSON строку размером {len(json_data)} символов")
-            
+
             response = self.lrs.save_statements(statement_dicts)
             self._handle_response(response, statements)
             return response
@@ -162,7 +162,6 @@ class XAPIBridgeLRSPublisher:
 
         if self.backend.request_unauthorised(response_data_str):
             error_msg = "Ошибка авторизации в LRS"
-            logger.error(error_msg)
             raise exceptions.XAPIBridgeLRSConnectionError(
                 endpoint=settings.LRS_ENDPOINT,
                 status_code=None
@@ -171,8 +170,8 @@ class XAPIBridgeLRSPublisher:
         if self.backend.response_has_storage_errors(response_data_str):
             bad_index = self.backend.parse_error_response_for_bad_statement(response_data_str)
             bad_statement = statements[bad_index] if bad_index is not None else None
-            error_msg = f"Ошибка сохранения высказывания: {response_data.get('message', '')}"
-            logger.error(error_msg)
+            error_msg = (f"Ошибка сохранения высказывания: {response_data.get('message', '')} ",
+                        f"- {response_data_str} - {response.request.content}")
             # Создаем словарь с данными ошибки
             error_data = {
                 'response_data': response_data,

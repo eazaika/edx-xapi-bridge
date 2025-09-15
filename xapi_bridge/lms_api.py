@@ -159,7 +159,7 @@ class UserApiClient(BaseLMSAPIClient):
             cache_prefix="user_api_"
         )
 
-    def get_edx_user_info(self, event: Dict[str, Any]) -> Dict[str, str]:
+    def get_edx_user_info(self, username: str) -> Dict[str, str]:
         """
         Получение информации о пользователе.
         Сначала пытается получить данные через API, если не получается - использует данные из события.
@@ -173,9 +173,8 @@ class UserApiClient(BaseLMSAPIClient):
         Raises:
             XAPIBridgeUserNotFoundError: Если пользователь не найден
         """
-        username = str(event.get('username') or '').strip()
         if not username or username == 'anonymous':
-            raise exceptions.XAPIBridgeUserNotFoundError(event, 'unknown')
+            raise exceptions.XAPIBridgeUserNotFoundError()
 
         # Пробуем получить данные через API
         try:
