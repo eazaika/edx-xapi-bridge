@@ -88,7 +88,9 @@ UNTI_XAPI: bool = False
 UNTI_INTERNAL_LRS_USERNAME: str = ''
 UNTI_INTERNAL_LRS_PASSWORD: str = ''
 UNTI_INTERNAL_LRS_BASICAUTH_HASH: str = ''
+
 UNTI_BRIDGE_API: str = '127.0.0.1'
+UNTI_BRIDGE_API_KEY: str = 'YOUR_API_KEY'
 
 UNTI_XAPI_EXT_URL: str = 'https://my.2035.university/xapi-extensions'
 

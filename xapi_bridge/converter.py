@@ -141,9 +141,10 @@ def check_course_unti_integration_status(course_key: str) -> Optional[bool]:
         True, если курс интегрирован, False, если не интегрирован, None, если произошла ошибка.
     """
     api_url = settings.UNTI_BRIDGE_API + f"/course/{course_key}/unti_status"
+    headers = {"X-API-Key": settings.UNTI_BRIDGE_API_KEY}
 
     try:
-        response = requests.get(api_url)
+        response = requests.get(api_url, headers = headers)
         response.raise_for_status()  # Raises HTTPError for bad responses (4xx or 5xx)
 
         if response.text.lower() == "true":
