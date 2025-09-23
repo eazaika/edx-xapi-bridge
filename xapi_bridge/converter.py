@@ -2,7 +2,6 @@
 Конвертер событий трекинга Open edX в xAPI-высказывания.
 
 """
-
 import logging
 from typing import Dict, Optional, Tuple
 
@@ -57,7 +56,7 @@ def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
         XAPIBridgeSkippedConversion: Для пропускаемых событий
     """
     try:
-        event_type = _normalize_event_type(evt['event_type'])
+        event_type = _normalize_event_type(evt.get('event_type', 'none_type'))
         _check_ignored_events(evt['event_source'], event_type)
 
         # Специальная обработка video_check
@@ -69,8 +68,13 @@ def to_xapi(evt: Dict) -> Optional[Tuple[base.LMSTrackingLogStatement]]:
 
     except exceptions.XAPIBridgeSkippedConversion as e:
         logger.debug(f"Событие пропущено: {e.message}. Данные: {evt}")
+    except TypeError as e:
+        logger.error(f"Событие с ошибкой TypeError {str(e)} - {evt}")
     except KeyError as e:
-        logger.debug(f"Необрабатываемый тип события: {event_type}. Ошибка: {str(e)}")
+        try:
+            logger.debug(f"Необрабатываемый тип события: {event_type}. Ошибка: {str(e)}")
+        except UnboundLocalError as e:
+            logger.error(f"Событие с ошибкой UnboundLocalError {evt}")
     except Exception as e:
         logger.error(f"Критическая ошибка конвертации: {str(e)}. Событие: {evt}")
 
