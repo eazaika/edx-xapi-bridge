@@ -62,7 +62,7 @@ class AttachmentStatement(block.BaseCoursewareBlockStatement):
             content_type=file_data.get('type', 'application/octet-stream'),
             length=file_data.get('size', 0),
             sha2=file_data.get('sha2', ''),
-            file_url=f"{settings.OPENEDX_PLATFORM_URI}{context.get('path', '')}"
+            fileurl=f"{settings.OPENEDX_PLATFORM_URI}{context.get('path', '')}"
         )
 
     def get_context_activities(self, event: Dict[str, Any]) -> ContextActivities:

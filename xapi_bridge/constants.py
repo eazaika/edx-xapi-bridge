@@ -42,6 +42,8 @@ XAPI_RESULT_VIDEO_TIME_FROM = "https://w3id.org/xapi/video/extensions/time-from"
 XAPI_RESULT_VIDEO_TIME_TO = "https://w3id.org/xapi/video/extensions/time-to"
 XAPI_RESULT_VIDEO_CC_ENABLED = "https://w3id.org/xapi/video/extensions/cc-enabled"
 
+XAPI_RESULT_EXTENSION_FILE_SIZE = "https://xapi.etu.ru/xapi/file-size"
+
 # Open edX Specific (Специфичные для Open edX)
 OPENEDX_OAUTH2_TOKEN_URL = "/oauth2/access_token"
 BLOCK_OBJECT_ID_FORMAT = "{platform}/xblock/{block_usage_key}"
