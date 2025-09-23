@@ -68,7 +68,7 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12'
     ],
-    python_requires='>=3.10',  # Указание минимальной версии Python
+    python_requires='>=3.8',  # Указание минимальной версии Python
     # entry_points={  # Раскомментировать, если есть консольные скрипты
     #     'console_scripts': [
     #         'xapi-bridge = xapi_bridge.cli:main',
