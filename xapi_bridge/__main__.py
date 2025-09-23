@@ -163,13 +163,18 @@ class TailHandler(ProcessEvent):
         self.ifp.close()
 
     def check_NOT_DAMAGED(self, event) -> Any:
-        """
-        Проверка на целостность полученного события
+        """ Проверка на целостность полученного события
         в логе события от Оценки просмотренного события
-        (с watch_times) превышают лимит и ломают формат
-        """
+        (с watch_times) превышают лимит и ломают формат """
         if event[-1] != '}':
-            return event + '\"}}}}'
+            # Ищем тег event и удаляем всю его инфу, т к
+            # он слишком длинный
+            pattern = r'(?<="event":).*'
+            event = re.sub(pattern, '""', event)
+            if event[-1] != '\"':
+                event = event + '\"\"}'
+            else:
+                event = event + '}'
         return event
 
     def process_IN_MODIFY(self, event) -> None:
@@ -192,7 +197,7 @@ class TailHandler(ProcessEvent):
                     for stmt in statements:
                         self.publish_queue.push(stmt)
             except json.JSONDecodeError as e:
-                logger.warning(f"Ошибка json-конвертации события: {e}. Событие {event}")
+                logger.warning(f"Ошибка json-конвертации события: {e}. \nСтрока {line} \nСобытие {event}")
             except Exception as e:
                 raise exceptions.XAPIBridgeSkippedConversion(
                     event_type=event['event_type'],
